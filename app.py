@@ -232,21 +232,6 @@ if st.session_state.index < len(st.session_state.db):
             st.session_state.last_feedback = None
             st.rerun()
 
-    # --- NAVIGATION BASSE ---
-    st.write("---")
-    nav_col1, nav_col2, nav_col3 = st.columns([1, 2, 1])
-    with nav_col1:
-        if st.session_state.index > 0:
-            if st.button("⬅️ Précédent"):
-                st.session_state.index -= 1
-                st.session_state.last_feedback = None
-                st.rerun()
-    with nav_col3:
-         if st.session_state.index < len(st.session_state.db) - 1:
-            if st.button("Suivant ➡️"):
-                st.session_state.index += 1
-                st.session_state.last_feedback = None
-                st.rerun()
 
 else:
     st.balloons()
