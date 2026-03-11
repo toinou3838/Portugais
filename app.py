@@ -28,10 +28,10 @@ st.markdown("""
     }
 
     [data-testid="stExpander"] button {
-        height: 22px !important;
-        width: 22px !important;
-        min-height: 22px !important;
-        min-width: 22px !important;
+        height: 24px !important;
+        width: 24px !important;
+        min-height: 24px !important;
+        min-width: 24px !important;
         padding: 0px !important;
         margin: 1px !important;
         font-size: 9px !important;
