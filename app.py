@@ -4,43 +4,35 @@ import unicodedata
 # --- CONFIGURATION ---
 st.set_page_config(page_title="O Mestre do Português", page_icon="🇧🇷", layout="centered")
 
-# --- STYLE SOBRE ET DISCRET ---
+# --- CSS PERSONNALISÉ (SOBRE & COMPACT) ---
 st.markdown("""
     <style>
-    /* Fond de page blanc */
     .main { background-color: #ffffff; }
     
-    /* Champ de texte blanc avec bordure fine */
+    /* Champ de texte blanc sur blanc */
     .stTextInput > div > div > input { 
         background-color: #ffffff; 
         color: #1e1e1e; 
-        border: 1px solid #e0e0e0; 
-        border-radius: 5px;
-        font-size: 18px;
-    }
-    
-    /* Boutons uniformes */
-    .stButton > button { 
-        width: 100%; 
-        border-radius: 5px; 
-        border: 1px solid #e0e0e0;
-        background-color: #ffffff;
-        color: #444444;
-    }
-    
-    /* Hover sur boutons */
-    .stButton > button:hover {
-        border-color: #4a90e2;
-        color: #4a90e2;
+        border: 1px solid #d0d0d0; 
+        border-radius: 4px;
+        padding: 10px;
     }
 
-    /* Style pour la grille de progression */
-    .dot-grid {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 5px;
-        justify-content: center;
-        padding: 10px;
+    /* Style des mini-carrés de progression */
+    div[data-testid="column"] > div > div > div > button {
+        height: 30px !important;
+        width: 30px !important;
+        padding: 0px !important;
+        font-size: 10px !important;
+        line-height: 30px !important;
+        border-radius: 3px !important;
+        margin: 1px !important;
+    }
+
+    /* Boutons d'action */
+    .stButton > button {
+        border-radius: 4px;
+        font-weight: 500;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -153,7 +145,7 @@ if 'db' not in st.session_state:
 # --- SESSION STATE ---
 if 'index' not in st.session_state:
     st.session_state.index = 0
-    st.session_state.history = [None] * len(st.session_state.db)
+    st.session_state.history = [None] * len(st.session_state.db) # None, True, False
     st.session_state.last_feedback = None
 
 # --- LOGIQUE ---
@@ -178,8 +170,8 @@ def levenshtein(s1, s2):
 # --- UI ---
 st.title("🇧🇷 O Mestre do Português")
 
-# --- RÉCAPITULATIF PLIABLE ---
-with st.expander("📊 Voir mon récapitulatif (Progression)", expanded=False):
+# --- RÉCAPITULATIF COMPACT ---
+with st.expander("📍 État de progression", expanded=False):
     cols_per_row = 10
     total_q = len(st.session_state.db)
     for i in range(0, total_q, cols_per_row):
@@ -188,19 +180,23 @@ with st.expander("📊 Voir mon récapitulatif (Progression)", expanded=False):
             idx = i + j
             if idx < total_q:
                 status = st.session_state.history[idx]
-                if status is True: color = "🟢"
-                elif status is False: color = "🔴"
-                else: color = "⚪"
+                label = f"{idx+1}"
                 
-                if cols[j].button(color, key=f"nav_{idx}"):
+                # Style de bordure via CSS inline (hack Streamlit pour couleurs spécifiques)
+                border_color = "#d0d0d0" # Gris par défaut
+                if status is True: border_color = "#28a745" # Vert
+                elif status is False: border_color = "#dc3545" # Rouge
+                
+                if cols[j].button(label, key=f"nav_{idx}"):
                     st.session_state.index = idx
                     st.session_state.last_feedback = None
                     st.rerun()
 
+# Score et Progression
 score_total = sum(1 for x in st.session_state.history if x is True)
 st.write(f"**Score : {score_total} / {total_q}**")
 
-# --- FEEDBACK ---
+# Feedback persistant
 if st.session_state.last_feedback:
     f_type, f_msg = st.session_state.last_feedback
     if f_type == "success": st.success(f_msg)
@@ -224,52 +220,69 @@ if st.session_state.index < total_q:
     if not already_done:
         with st.form(key='quiz_form', clear_on_submit=True):
             user_input = st.text_input("Réponse :", key="input_field")
-            c1, c2 = st.columns(2)
-            with c1: submit = st.form_submit_button("VALIDER")
-            with c2: skip = st.form_submit_button("PASSER")
+            # Alignement des 3 boutons : Précédent | Passer | Valider
+            c_prev, c_skip, c_val = st.columns([1, 1, 1])
+            with c_prev: 
+                prev_btn = st.form_submit_button("⬅️ PRÉCÉDENT")
+            with c_skip: 
+                skip_btn = st.form_submit_button("PASSER")
+            with c_val: 
+                submit_btn = st.form_submit_button("VALIDER ✅")
 
-        if submit:
+        if submit_btn:
             dist = levenshtein(user_input, target)
             if dist <= 1:
                 st.session_state.history[st.session_state.index] = True
-                st.session_state.last_feedback = ("success", f"✅ Correct ! {q['fr']} = {q['pt']}")
+                st.session_state.last_feedback = ("success", f"✅ Correct ! **{q['fr']}** = **{q['pt']}**")
             else:
                 st.session_state.history[st.session_state.index] = False
-                st.session_state.last_feedback = ("error", f"❌ Faux. La réponse était : {target}")
+                st.session_state.last_feedback = ("error", f"❌ Erreur. La réponse était : **{target}**")
             st.session_state.index += 1
             st.rerun()
 
-        if skip:
-            st.session_state.history[st.session_state.index] = False
-            st.session_state.last_feedback = ("error", f"Passé. La réponse était : {target}")
+        if skip_btn:
+            # On ne marque pas comme faux (history reste None)
+            st.session_state.last_feedback = ("error", f"Passé. La réponse était : **{target}**")
             st.session_state.index += 1
+            st.rerun()
+            
+        if prev_btn and st.session_state.index > 0:
+            st.session_state.index -= 1
+            st.session_state.last_feedback = None
             st.rerun()
     else:
         # Question déjà répondue
         is_juste = st.session_state.history[st.session_state.index]
-        msg = "✅ Bien joué !" if is_juste else "❌ C'était une erreur."
-        st.markdown(f"### {msg}")
+        msg = "✅ Déjà réussi !" if is_juste else "❌ Échoué précédemment."
+        color = "green" if is_juste else "red"
+        st.markdown(f"<h3 style='color:{color};'>{msg}</h3>", unsafe_allow_html=True)
         st.write(f"Rappel : **{q['fr']}** = **{q['pt']}**")
         
-        if st.button("Suivant ➡️"):
-            st.session_state.index += 1
-            st.session_state.last_feedback = None
-            st.rerun()
-            
-    # Navigation arrière discrète
-    if st.session_state.index > 0:
-        if st.button("⬅️ Revenir à la question précédente"):
-            st.session_state.index -= 1
-            st.session_state.last_feedback = None
-            st.rerun()
+        c1, c2, c3 = st.columns([1, 1, 1])
+        with c1:
+            if st.button("⬅️ Précédent"):
+                st.session_state.index -= 1
+                st.rerun()
+        with c3:
+            if st.button("Suivant ➡️"):
+                st.session_state.index += 1
+                st.session_state.last_feedback = None
+                st.rerun()
 
 else:
+    # FIN DU QUIZ
+    unanswered_count = st.session_state.history.count(None)
     st.balloons()
     st.header("Fim do quiz ! 🎉")
-    st.write(f"Score final : {score_total} / {total_q}")
-    if st.button("Recommencer"):
+    st.write(f"Score final : **{score_total} / {total_q}**")
+    
+    if unanswered_count > 0:
+        st.warning(f"Attention : Il vous reste **{unanswered_count} questions** non répondues (en gris).")
+    
+    if st.button("Recommencer tout le test"):
         st.session_state.index = 0
         st.session_state.history = [None] * total_q
+        st.session_state.last_feedback = None
         st.rerun()
 
 # --- SIDEBAR ---
