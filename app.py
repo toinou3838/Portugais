@@ -239,17 +239,19 @@ if st.session_state.index < total_q:
                 submit_btn = st.form_submit_button("VALIDER ✅")
 
         if submit_btn:
+
             dist = levenshtein(user_input, target)
+
             if dist <= 1:
-                # Succès : Vert + Passage immédiat
+                st.success(f"✅ Correct !  |  {q['fr']} = {q['pt']}")
                 st.session_state.history[st.session_state.index] = True
-                st.session_state.last_feedback = ("success", f"✅ **Correct !** | {q['fr']} = **{q['pt']}**")
             else:
-                # Erreur : Rouge + Passage immédiat
+                st.error(f"❌ Mauvaise réponse !  |  La bonne réponse était : {target}")
                 st.session_state.history[st.session_state.index] = False
-                st.session_state.last_feedback = ("error", f"❌ **Erreur !** | La réponse était : **{target}**")
-            
+
+            # passage automatique à la question suivante
             st.session_state.index += 1
+            st.session_state.last_feedback = None
             st.rerun()
 
         if skip_btn:
