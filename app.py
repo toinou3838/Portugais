@@ -203,7 +203,7 @@ if st.session_state.index < len(st.session_state.db):
             with col2:
                 skip = st.form_submit_button("PASSER")
 
-        if submit and user_input:
+        if submit:
             dist = levenshtein(user_input, target)
             if dist <= 1:
                 st.session_state.history[st.session_state.index] = True
