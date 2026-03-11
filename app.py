@@ -7,37 +7,43 @@ st.set_page_config(page_title="O Mestre do Português", page_icon="🇧🇷", la
 # --- CSS PERSONNALISÉ (SOBRE & COMPACT) ---
 st.markdown("""
     <style>
-    .main { background-color: #ffffff; }
-    
-    /* Fond de page blanc */
-    .main { background-color: #ffffff; }
-    
-    /* Champ de texte blanc */
-    .stTextInput > div > div > input { 
-        background-color: #ffffff; color: #1e1e1e; 
-        border: 1px solid #d0d0d0; border-radius: 4px;
-    }
+        .main { background-color: #ffffff; }
+        
+        /* Champ de texte blanc */
+        .stTextInput > div > div > input { 
+            background-color: #ffffff; color: #1e1e1e; 
+            border: 1px solid #d0d0d0; border-radius: 4px;
+        }
 
-    /* Grille de progression ultra-compacte */
-    [data-testid="stExpander"] [data-testid="column"] {
-        width: fit-content !important;
-        flex: unset !important;
-        min-width: 24px !important;
-        padding: 0px !important;
-        margin: 0px !important;
-    }
+        /* 1. C'est ici qu'on enlève l'espace entre les colonnes (le gap) */
+        [data-testid="stExpander"] [data-testid="stHorizontalBlock"] {
+            gap: 0px !important;
+        }
 
-    [data-testid="stExpander"] button {
-        height: 24px !important;
-        width: 24px !important;
-        min-height: 24px !important;
-        min-width: 24px !important;
-        padding: 0px !important;
-        margin: 1px !important;
-        font-size: 9px !important;
-        border-radius: 2px !important;
-        border: 1px solid #d0d0d0 !important;
-    }
+        /* 2. On ajuste les colonnes pour qu'elles collent au bouton */
+        [data-testid="stExpander"] [data-testid="column"] {
+            width: fit-content !important;
+            flex: unset !important;
+            min-width: unset !important; /* On enlève le 24px qui forçait un espace */
+            padding: 0px !important;
+            margin: 0px !important;
+        }
+
+        /* 3. On définit la taille des boutons et on rend le texte lisible */
+        [data-testid="stExpander"] button {
+            height: 26px !important; /* Taille légèrement augmentée pour 100 */
+            width: 26px !important;
+            min-height: 26px !important;
+            min-width: 26px !important;
+            padding: 0px !important;
+            margin: 1px !important; /* Seul petit espace restant entre les carrés */
+            font-size: 10px !important; /* 3px était trop petit, 10px est parfait */
+            border-radius: 2px !important;
+            border: 1px solid #d0d0d0 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
     </style>
     """, unsafe_allow_html=True)
 
