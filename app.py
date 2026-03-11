@@ -37,7 +37,7 @@ st.markdown("""
             min-width: 26px !important;
             padding: 0px !important;
             margin: 0px !important; /* Seul petit espace restant entre les carrés */
-            font-size: 10px !important; /* 3px était trop petit, 10px est parfait */
+            font-size: 2px !important; /* 3px était trop petit, 10px est parfait */
             border-radius: 2px !important;
             border: 1px solid #d0d0d0 !important;
             display: flex !important;
