@@ -15,33 +15,41 @@ st.markdown("""
             border: 1px solid #d0d0d0; border-radius: 4px;
         }
 
-        /* 1. C'est ici qu'on enlève l'espace entre les colonnes (le gap) */
-        [data-testid="stExpander"] [data-testid="stHorizontalBlock"] {
-            gap: 0px !important;
+        .progress-grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 6px;
+            margin-top: 0.5rem;
         }
 
-        /* 2. On ajuste les colonnes pour qu'elles collent au bouton */
-        [data-testid="stExpander"] [data-testid="column"] {
-            width: fit-content !important;
-            flex: unset !important;
-            min-width: unset !important; /* On enlève le 24px qui forçait un espace */
-            padding: 0px !important;
-            margin: 0px !important;
+        .progress-box {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 30px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-size: 0.85rem;
+            font-weight: 600;
+            border: 1px solid #d0d0d0;
+            color: #1e1e1e;
+            background-color: #f4f4f4;
         }
 
-        /* 3. On définit la taille des boutons et on rend le texte lisible */
-        [data-testid="stExpander"] button {
-            height: 26px !important; /* Taille légèrement augmentée pour 100 */
-            width: 26px !important;
-            min-height: 26px !important;
-            min-width: 26px !important;
-            padding: 0px !important;
-            margin: 0px !important; /* Seul petit espace restant entre les carrés */
-            font-size: 2px !important; /* 3px était trop petit, 10px est parfait */
-            border-radius: 2px !important;
-            border: 1px solid #d0d0d0 !important;
-            display: flex !important;
-            align-items: center !important;
+        .progress-box.correct {
+            background-color: #d4edda;
+            border-color: #28a745;
+            color: #155724;
+        }
+
+        .progress-box.incorrect {
+            background-color: #f8d7da;
+            border-color: #dc3545;
+            color: #721c24;
+        }
+
+        .progress-box.current {
+            box-shadow: inset 0 0 0 2px #1f6feb;
         }
     </style>
     """, unsafe_allow_html=True)
@@ -176,30 +184,39 @@ def levenshtein(s1, s2):
         prev_row = curr_row
     return prev_row[-1]
 
+def progress_class(status, idx, current_idx):
+    classes = ["progress-box"]
+    if status is True:
+        classes.append("correct")
+    elif status is False:
+        classes.append("incorrect")
+    if idx == current_idx:
+        classes.append("current")
+    return " ".join(classes)
+
 # --- UI ---
 st.title("🇧🇷 O Mestre do Português")
+total_q = len(st.session_state.db)
+
+query_index = st.query_params.get("q")
+if query_index is not None:
+    try:
+        selected_index = int(query_index)
+    except (TypeError, ValueError):
+        selected_index = None
+    if selected_index is not None and 0 <= selected_index < total_q and selected_index != st.session_state.index:
+        st.session_state.index = selected_index
+        st.session_state.last_feedback = None
+    st.query_params.clear()
 
 # --- RÉCAPITULATIF COMPACT ---
 with st.expander("📍 État de progression", expanded=False):
-    cols_per_row = 10
-    total_q = len(st.session_state.db)
-    for i in range(0, total_q, cols_per_row):
-        cols = st.columns(cols_per_row)
-        for j in range(cols_per_row):
-            idx = i + j
-            if idx < total_q:
-                status = st.session_state.history[idx]
-                label = f"{idx+1}"
-                
-                # Style de bordure via CSS inline (hack Streamlit pour couleurs spécifiques)
-                border_color = "#d0d0d0" # Gris par défaut
-                if status is True: border_color = "#28a745" # Vert
-                elif status is False: border_color = "#dc3545" # Rouge
-                
-                if cols[j].button(label, key=f"nav_{idx}"):
-                    st.session_state.index = idx
-                    st.session_state.last_feedback = None
-                    st.rerun()
+    progress_boxes = []
+    for idx, status in enumerate(st.session_state.history):
+        progress_boxes.append(
+            f'<a class="{progress_class(status, idx, st.session_state.index)}" href="?q={idx}" title="Question {idx + 1}">{idx + 1}</a>'
+        )
+    st.markdown(f'<div class="progress-grid">{"".join(progress_boxes)}</div>', unsafe_allow_html=True)
 
 # Score et Progression
 score_total = sum(1 for x in st.session_state.history if x is True)
@@ -208,8 +225,12 @@ st.write(f"**Score : {score_total} / {total_q}**")
 # Feedback persistant
 if st.session_state.last_feedback:
     f_type, f_msg = st.session_state.last_feedback
-    if f_type == "success": st.success(f_msg)
-    else: st.error(f_msg)
+    if f_type == "success":
+        st.success(f_msg)
+    elif f_type == "warning":
+        st.warning(f_msg)
+    else:
+        st.error(f_msg)
 
 st.divider()
 
@@ -257,9 +278,7 @@ if st.session_state.index < total_q:
             st.rerun()
 
         if skip:
-
-            st.session_state.history[st.session_state.index] = False  # Marqué comme faux si passé
-            st.session_state.last_feedback = ("warning", f"Question passée. La réponse était : **{target}**")
+            st.session_state.last_feedback = ("warning", f"Question passée. Elle reste non répondue. Réponse attendue : **{target}**")
 
             st.session_state.index += 1
             st.rerun()
