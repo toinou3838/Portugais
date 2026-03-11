@@ -4,14 +4,44 @@ import unicodedata
 # --- CONFIGURATION ---
 st.set_page_config(page_title="O Mestre do Português", page_icon="🇧🇷", layout="centered")
 
-# --- STYLE SOBRE "SLATE & STEEL" ---
+# --- STYLE SOBRE ET DISCRET ---
 st.markdown("""
     <style>
-    .main { background-color: #1e1e1e; }
-    .stTextInput > div > div > input { background-color: #2d2d2d; color: white; border: 1px solid #4a90e2; }
-    .stButton > button { width: 100%; border-radius: 5px; }
-    .unanswered { color: #888; font-weight: bold; }
-    .status-box { padding: 15px; border-radius: 10px; margin-bottom: 20px; text-align: center; }
+    /* Fond de page blanc */
+    .main { background-color: #ffffff; }
+    
+    /* Champ de texte blanc avec bordure fine */
+    .stTextInput > div > div > input { 
+        background-color: #ffffff; 
+        color: #1e1e1e; 
+        border: 1px solid #e0e0e0; 
+        border-radius: 5px;
+        font-size: 18px;
+    }
+    
+    /* Boutons uniformes */
+    .stButton > button { 
+        width: 100%; 
+        border-radius: 5px; 
+        border: 1px solid #e0e0e0;
+        background-color: #ffffff;
+        color: #444444;
+    }
+    
+    /* Hover sur boutons */
+    .stButton > button:hover {
+        border-color: #4a90e2;
+        color: #4a90e2;
+    }
+
+    /* Style pour la grille de progression */
+    .dot-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+        justify-content: center;
+        padding: 10px;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -120,11 +150,11 @@ if 'db' not in st.session_state:
         {"fr": "pourboire", "pt": "gorjeta", "dir": 1}
     ]
 
-# --- INITIALISATION ÉTAT SESSION ---
+# --- SESSION STATE ---
 if 'index' not in st.session_state:
     st.session_state.index = 0
-    st.session_state.history = [None] * len(st.session_state.db) # None, True, False
-    st.session_state.last_feedback = None # (type, message)
+    st.session_state.history = [None] * len(st.session_state.db)
+    st.session_state.last_feedback = None
 
 # --- LOGIQUE ---
 def normalize(text):
@@ -145,109 +175,107 @@ def levenshtein(s1, s2):
         prev_row = curr_row
     return prev_row[-1]
 
-# --- INTERFACE ---
+# --- UI ---
 st.title("🇧🇷 O Mestre do Português")
 
-# --- TABLEAU DE BORD (MINI RÉCAP) ---
-st.write("### Progression & Résultats")
-cols_per_row = 20
-rows = (len(st.session_state.db) // cols_per_row) + 1
-for r in range(rows):
-    cols = st.columns(cols_per_row)
-    for c in range(cols_per_row):
-        idx = r * cols_per_row + c
-        if idx < len(st.session_state.db):
-            status = st.session_state.history[idx]
-            if status is True: icon = "🟢"
-            elif status is False: icon = "🔴"
-            else: icon = "⚪"
-            
-            # Rendre l'icône cliquable pour sauter à cette question
-            if cols[c].button(icon, key=f"btn_nav_{idx}", help=f"Aller à la question {idx+1}"):
-                st.session_state.index = idx
-                st.rerun()
+# --- RÉCAPITULATIF PLIABLE ---
+with st.expander("📊 Voir mon récapitulatif (Progression)", expanded=False):
+    cols_per_row = 10
+    total_q = len(st.session_state.db)
+    for i in range(0, total_q, cols_per_row):
+        cols = st.columns(cols_per_row)
+        for j in range(cols_per_row):
+            idx = i + j
+            if idx < total_q:
+                status = st.session_state.history[idx]
+                if status is True: color = "🟢"
+                elif status is False: color = "🔴"
+                else: color = "⚪"
+                
+                if cols[j].button(color, key=f"nav_{idx}"):
+                    st.session_state.index = idx
+                    st.session_state.last_feedback = None
+                    st.rerun()
 
-# Score affiché proprement
 score_total = sum(1 for x in st.session_state.history if x is True)
-st.write(f"**Score actuel : {score_total} / {len(st.session_state.db)}**")
+st.write(f"**Score : {score_total} / {total_q}**")
 
-# --- AFFICHAGE DU FEEDBACK PRÉCÉDENT ---
+# --- FEEDBACK ---
 if st.session_state.last_feedback:
     f_type, f_msg = st.session_state.last_feedback
     if f_type == "success": st.success(f_msg)
-    elif f_type == "error": st.error(f_msg)
-    else: st.warning(f_msg)
+    else: st.error(f_msg)
 
-st.write("---")
+st.divider()
 
-# --- CORPS DU QUIZ ---
-if st.session_state.index < len(st.session_state.db):
+# --- QUIZ ---
+if st.session_state.index < total_q:
     q = st.session_state.db[st.session_state.index]
     prompt = q["fr"] if q["dir"] == 0 else q["pt"]
     target = q["pt"] if q["dir"] == 0 else q["fr"]
     label = "Français ➔ Portugais" if q["dir"] == 0 else "Português ➔ Francês"
     
-    st.write(f"#### Question {st.session_state.index + 1}")
-    st.info(f"### {prompt.upper()}")
+    st.write(f"Question {st.session_state.index + 1}")
+    st.subheader(prompt.upper())
     st.caption(label)
 
-    # Vérifier si déjà répondu
     already_done = st.session_state.history[st.session_state.index] is not None
 
     if not already_done:
         with st.form(key='quiz_form', clear_on_submit=True):
-            user_input = st.text_input("Ta réponse :", key="input_field")
-            col1, col2 = st.columns(2)
-            with col1:
-                submit = st.form_submit_button("VALIDER")
-            with col2:
-                skip = st.form_submit_button("PASSER")
+            user_input = st.text_input("Réponse :", key="input_field")
+            c1, c2 = st.columns(2)
+            with c1: submit = st.form_submit_button("VALIDER")
+            with c2: skip = st.form_submit_button("PASSER")
 
         if submit:
             dist = levenshtein(user_input, target)
             if dist <= 1:
                 st.session_state.history[st.session_state.index] = True
-                st.session_state.last_feedback = ("success", f"✅ **Correct !** | {q['fr']} = **{q['pt']}**")
+                st.session_state.last_feedback = ("success", f"✅ Correct ! {q['fr']} = {q['pt']}")
             else:
                 st.session_state.history[st.session_state.index] = False
-                st.session_state.last_feedback = ("error", f"❌ **Erreur !** | La réponse était : **{target}**")
-            
+                st.session_state.last_feedback = ("error", f"❌ Faux. La réponse était : {target}")
             st.session_state.index += 1
             st.rerun()
 
         if skip:
-            st.session_state.history[st.session_state.index] = False # Marqué comme faux si passé
-            st.session_state.last_feedback = ("warning", f"Question passée. La réponse était : **{target}**")
+            st.session_state.history[st.session_state.index] = False
+            st.session_state.last_feedback = ("error", f"Passé. La réponse était : {target}")
             st.session_state.index += 1
             st.rerun()
     else:
-        # Question déjà répondue : on affiche juste la correction
-        status_text = "✅ Tu as eu juste !" if st.session_state.history[st.session_state.index] else "❌ Tu as eu faux."
-        color = "green" if st.session_state.history[st.session_state.index] else "red"
-        st.markdown(f"<div style='color:{color}; font-weight:bold; font-size:20px;'>{status_text}</div>", unsafe_allow_html=True)
-        st.write(f"Rappel de la traduction : **{q['fr']}** = **{q['pt']}**")
+        # Question déjà répondue
+        is_juste = st.session_state.history[st.session_state.index]
+        msg = "✅ Bien joué !" if is_juste else "❌ C'était une erreur."
+        st.markdown(f"### {msg}")
+        st.write(f"Rappel : **{q['fr']}** = **{q['pt']}**")
         
-        if st.button("Question suivante ➡️"):
+        if st.button("Suivant ➡️"):
             st.session_state.index += 1
             st.session_state.last_feedback = None
             st.rerun()
-
+            
+    # Navigation arrière discrète
+    if st.session_state.index > 0:
+        if st.button("⬅️ Revenir à la question précédente"):
+            st.session_state.index -= 1
+            st.session_state.last_feedback = None
+            st.rerun()
 
 else:
     st.balloons()
-    st.success(f"## Quiz terminé ! 🎉")
-    st.write(f"### Ton score final : {score_total} / {len(st.session_state.db)}")
-    if st.button("Recommencer tout le test"):
+    st.header("Fim do quiz ! 🎉")
+    st.write(f"Score final : {score_total} / {total_q}")
+    if st.button("Recommencer"):
         st.session_state.index = 0
-        st.session_state.history = [None] * len(st.session_state.db)
-        st.session_state.last_feedback = None
+        st.session_state.history = [None] * total_q
         st.rerun()
 
-# --- SIDEBAR TOOLS ---
-st.sidebar.title("Paramètres")
-if st.sidebar.button("🔄 Inverser FR/PT"):
+# --- SIDEBAR ---
+if st.sidebar.button("🔄 Inverser tout le Quiz"):
     for item in st.session_state.db:
         item["dir"] = 1 if item["dir"] == 0 else 0
     st.session_state.index = 0
-    st.session_state.history = [None] * len(st.session_state.db)
+    st.session_state.history = [None] * total_q
     st.rerun()
