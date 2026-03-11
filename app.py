@@ -9,30 +9,34 @@ st.markdown("""
     <style>
     .main { background-color: #ffffff; }
     
-    /* Champ de texte blanc sur blanc */
+    /* Fond de page blanc */
+    .main { background-color: #ffffff; }
+    
+    /* Champ de texte blanc */
     .stTextInput > div > div > input { 
-        background-color: #ffffff; 
-        color: #1e1e1e; 
-        border: 1px solid #d0d0d0; 
-        border-radius: 4px;
-        padding: 10px;
+        background-color: #ffffff; color: #1e1e1e; 
+        border: 1px solid #d0d0d0; border-radius: 4px;
     }
 
-    /* Style des mini-carrés de progression */
-    div[data-testid="column"] > div > div > div > button {
-        height: 30px !important;
-        width: 30px !important;
+    /* Grille de progression ultra-compacte */
+    [data-testid="stExpander"] [data-testid="column"] {
+        width: fit-content !important;
+        flex: unset !important;
+        min-width: 24px !important;
         padding: 0px !important;
-        font-size: 10px !important;
-        line-height: 30px !important;
-        border-radius: 3px !important;
-        margin: 1px !important;
+        margin: 0px !important;
     }
 
-    /* Boutons d'action */
-    .stButton > button {
-        border-radius: 4px;
-        font-weight: 500;
+    [data-testid="stExpander"] button {
+        height: 22px !important;
+        width: 22px !important;
+        min-height: 22px !important;
+        min-width: 22px !important;
+        padding: 0px !important;
+        margin: 1px !important;
+        font-size: 9px !important;
+        border-radius: 2px !important;
+        border: 1px solid #d0d0d0 !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -232,16 +236,19 @@ if st.session_state.index < total_q:
         if submit_btn:
             dist = levenshtein(user_input, target)
             if dist <= 1:
+                # Succès : Vert + Passage immédiat
                 st.session_state.history[st.session_state.index] = True
-                st.session_state.last_feedback = ("success", f"✅ Correct ! **{q['fr']}** = **{q['pt']}**")
+                st.session_state.last_feedback = ("success", f"✅ **Correct !** | {q['fr']} = **{q['pt']}**")
             else:
+                # Erreur : Rouge + Passage immédiat
                 st.session_state.history[st.session_state.index] = False
-                st.session_state.last_feedback = ("error", f"❌ Erreur. La réponse était : **{target}**")
+                st.session_state.last_feedback = ("error", f"❌ **Erreur !** | La réponse était : **{target}**")
+            
             st.session_state.index += 1
             st.rerun()
 
         if skip_btn:
-            # On ne marque pas comme faux (history reste None)
+            # Passage simple : Reste gris (None) + Passage immédiat
             st.session_state.last_feedback = ("error", f"Passé. La réponse était : **{target}**")
             st.session_state.index += 1
             st.rerun()
