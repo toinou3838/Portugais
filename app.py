@@ -164,6 +164,7 @@ if 'index' not in st.session_state:
     st.session_state.index = 0
     st.session_state.history = [None] * len(st.session_state.db) # None, True, False
     st.session_state.last_feedback = None
+    st.session_state.quiz_finished = False
 
 # --- LOGIQUE ---
 def normalize(text):
@@ -214,13 +215,19 @@ with st.expander("📍 État de progression", expanded=False):
     progress_boxes = []
     for idx, status in enumerate(st.session_state.history):
         progress_boxes.append(
-            f'<a class="{progress_class(status, idx, st.session_state.index)}" href="?q={idx}" title="Question {idx + 1}">{idx + 1}</a>'
+            f'<a class="{progress_class(status, idx, st.session_state.index)}" href="?q={idx}" target="_self" title="Question {idx + 1}">{idx + 1}</a>'
         )
     st.markdown(f'<div class="progress-grid">{"".join(progress_boxes)}</div>', unsafe_allow_html=True)
 
 # Score et Progression
 score_total = sum(1 for x in st.session_state.history if x is True)
+unanswered_count = st.session_state.history.count(None)
+all_answered = unanswered_count == 0
 st.write(f"**Score : {score_total} / {total_q}**")
+
+if st.button("Terminer le quiz"):
+    st.session_state.quiz_finished = True
+    st.rerun()
 
 # Feedback persistant
 if st.session_state.last_feedback:
@@ -235,7 +242,13 @@ if st.session_state.last_feedback:
 st.divider()
 
 # --- QUIZ ---
-if st.session_state.index < total_q:
+if not st.session_state.quiz_finished and not all_answered:
+    if st.session_state.index >= total_q:
+        st.header("Questions restantes")
+        st.write(f"Il reste **{unanswered_count} questions** a completer.")
+        st.info("Utilise le menu de progression pour revenir sur une question passee.")
+        st.stop()
+
     q = st.session_state.db[st.session_state.index]
     prompt = q["fr"] if q["dir"] == 0 else q["pt"]
     target = q["pt"] if q["dir"] == 0 else q["fr"]
@@ -275,10 +288,12 @@ if st.session_state.index < total_q:
                 st.session_state.last_feedback = ("error", f"❌ **Erreur !** | La réponse était : **{target}**")
 
             st.session_state.index += 1
+            if st.session_state.history.count(None) == 0:
+                st.session_state.quiz_finished = True
             st.rerun()
 
         if skip:
-            st.session_state.last_feedback = ("warning", f"Question passée. Elle reste non répondue. Réponse attendue : **{target}**")
+            st.session_state.last_feedback = ("warning", "Question passee. Elle reste non repondue.")
 
             st.session_state.index += 1
             st.rerun()
@@ -299,22 +314,24 @@ if st.session_state.index < total_q:
         if st.button("Question suivante ➡️"):
             st.session_state.index += 1
             st.session_state.last_feedback = None
+            if st.session_state.index >= total_q and st.session_state.history.count(None) == 0:
+                st.session_state.quiz_finished = True
             st.rerun()
 
 else:
     # FIN DU QUIZ
-    unanswered_count = st.session_state.history.count(None)
     st.balloons()
     st.header("Fim do quiz ! 🎉")
     st.write(f"Score final : **{score_total} / {total_q}**")
     
     if unanswered_count > 0:
-        st.warning(f"Attention : Il vous reste **{unanswered_count} questions** non répondues (en gris).")
+        st.warning(f"Il reste **{unanswered_count} questions** non repondues.")
     
     if st.button("Recommencer tout le test"):
         st.session_state.index = 0
         st.session_state.history = [None] * total_q
         st.session_state.last_feedback = None
+        st.session_state.quiz_finished = False
         st.rerun()
 
 # --- SIDEBAR ---
@@ -323,4 +340,6 @@ if st.sidebar.button("🔄 Inverser tout le Quiz"):
         item["dir"] = 1 if item["dir"] == 0 else 0
     st.session_state.index = 0
     st.session_state.history = [None] * total_q
+    st.session_state.last_feedback = None
+    st.session_state.quiz_finished = False
     st.rerun()
