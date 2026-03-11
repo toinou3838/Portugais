@@ -15,41 +15,21 @@ st.markdown("""
             border: 1px solid #d0d0d0; border-radius: 4px;
         }
 
-        .progress-grid {
-            display: grid;
-            grid-template-columns: repeat(10, 1fr);
-            gap: 6px;
-            margin-top: 0.5rem;
+        [data-testid="stExpander"] [data-testid="stHorizontalBlock"] {
+            gap: 0.35rem !important;
         }
 
-        .progress-box {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 30px;
-            border-radius: 6px;
-            text-decoration: none;
-            font-size: 0.85rem;
-            font-weight: 600;
-            border: 1px solid #d0d0d0;
-            color: #1e1e1e;
-            background-color: #f4f4f4;
+        [data-testid="stExpander"] [data-testid="column"] {
+            padding: 0 !important;
         }
 
-        .progress-box.correct {
-            background-color: #d4edda;
-            border-color: #28a745;
-            color: #155724;
-        }
-
-        .progress-box.incorrect {
-            background-color: #f8d7da;
-            border-color: #dc3545;
-            color: #721c24;
-        }
-
-        .progress-box.current {
-            box-shadow: inset 0 0 0 2px #1f6feb;
+        [data-testid="stExpander"] button {
+            width: 100% !important;
+            min-width: 0 !important;
+            height: 34px !important;
+            padding: 0.1rem !important;
+            border-radius: 6px !important;
+            font-size: 0.78rem !important;
         }
     </style>
     """, unsafe_allow_html=True)
@@ -195,29 +175,58 @@ def progress_class(status, idx, current_idx):
         classes.append("current")
     return " ".join(classes)
 
+def jump_to_question(idx):
+    st.session_state.index = idx
+    st.session_state.last_feedback = None
+    if st.session_state.history.count(None) > 0:
+        st.session_state.quiz_finished = False
+
+def next_unanswered_index(current_idx, history):
+    total = len(history)
+    for idx in range(current_idx + 1, total):
+        if history[idx] is None:
+            return idx
+    for idx in range(0, current_idx + 1):
+        if history[idx] is None:
+            return idx
+    return total
+
+def progress_label(status, idx, current_idx):
+    if idx == current_idx:
+        prefix = "▶"
+    elif status is True:
+        prefix = "🟩"
+    elif status is False:
+        prefix = "🟥"
+    else:
+        prefix = "⬜"
+    return f"{prefix} {idx + 1}"
+
 # --- UI ---
 st.title("🇧🇷 O Mestre do Português")
 total_q = len(st.session_state.db)
 
-query_index = st.query_params.get("q")
-if query_index is not None:
-    try:
-        selected_index = int(query_index)
-    except (TypeError, ValueError):
-        selected_index = None
-    if selected_index is not None and 0 <= selected_index < total_q and selected_index != st.session_state.index:
-        st.session_state.index = selected_index
-        st.session_state.last_feedback = None
-    st.query_params.clear()
-
 # --- RÉCAPITULATIF COMPACT ---
 with st.expander("📍 État de progression", expanded=False):
-    progress_boxes = []
-    for idx, status in enumerate(st.session_state.history):
-        progress_boxes.append(
-            f'<a class="{progress_class(status, idx, st.session_state.index)}" href="?q={idx}" target="_self" title="Question {idx + 1}">{idx + 1}</a>'
-        )
-    st.markdown(f'<div class="progress-grid">{"".join(progress_boxes)}</div>', unsafe_allow_html=True)
+    cols_per_row = 10
+    for row_start in range(0, total_q, cols_per_row):
+        cols = st.columns(cols_per_row)
+        for offset, col in enumerate(cols):
+            idx = row_start + offset
+            if idx >= total_q:
+                continue
+            status = st.session_state.history[idx]
+            button_type = "secondary"
+            if idx == st.session_state.index:
+                button_type = "primary"
+            col.button(
+                progress_label(status, idx, st.session_state.index),
+                key=f"nav_{idx}",
+                on_click=jump_to_question,
+                args=(idx,),
+                type=button_type,
+                use_container_width=True,
+            )
 
 # Score et Progression
 score_total = sum(1 for x in st.session_state.history if x is True)
@@ -287,7 +296,7 @@ if not st.session_state.quiz_finished and not all_answered:
                 st.session_state.history[st.session_state.index] = False
                 st.session_state.last_feedback = ("error", f"❌ **Erreur !** | La réponse était : **{target}**")
 
-            st.session_state.index += 1
+            st.session_state.index = next_unanswered_index(st.session_state.index, st.session_state.history)
             if st.session_state.history.count(None) == 0:
                 st.session_state.quiz_finished = True
             st.rerun()
@@ -312,7 +321,7 @@ if not st.session_state.quiz_finished and not all_answered:
         st.write(f"Rappel de la traduction : **{q['fr']}** = **{q['pt']}**")
 
         if st.button("Question suivante ➡️"):
-            st.session_state.index += 1
+            st.session_state.index = next_unanswered_index(st.session_state.index, st.session_state.history)
             st.session_state.last_feedback = None
             if st.session_state.index >= total_q and st.session_state.history.count(None) == 0:
                 st.session_state.quiz_finished = True
