@@ -1,0 +1,16 @@
+# environnement python
+venv/
+__pycache__/
+
+# fichiers python compilés
+*.pyc
+*.pyo
+
+# fichiers système
+.DS_Store
+
+# vscode
+.vscode/
+
+# notebooks
+.ipynb_checkpoints
