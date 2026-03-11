@@ -224,64 +224,63 @@ if st.session_state.index < total_q:
     st.subheader(prompt.upper())
     st.caption(label)
 
+    # Vérifier si déjà répondu
     already_done = st.session_state.history[st.session_state.index] is not None
 
     if not already_done:
-        with st.form(key='quiz_form', clear_on_submit=True):
-            user_input = st.text_input("Réponse :", key="input_field")
-            # Alignement des 3 boutons : Précédent | Passer | Valider
-            c_prev, c_skip, c_val = st.columns([1, 1, 1])
-            with c_prev: 
-                prev_btn = st.form_submit_button("⬅️ PRÉCÉDENT")
-            with c_skip: 
-                skip_btn = st.form_submit_button("PASSER")
-            with c_val: 
-                submit_btn = st.form_submit_button("VALIDER ✅")
 
-        if submit_btn:
+        with st.form(key='quiz_form', clear_on_submit=True):
+
+            user_input = st.text_input("Ta réponse :", key="input_field")
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+                submit = st.form_submit_button("VALIDER")
+
+            with col2:
+                skip = st.form_submit_button("PASSER")
+
+        if submit:
 
             dist = levenshtein(user_input, target)
 
             if dist <= 1:
-                st.success(f"✅ Correct !  |  {q['fr']} = {q['pt']}")
                 st.session_state.history[st.session_state.index] = True
+                st.session_state.last_feedback = ("success", f"✅ **Correct !** | {q['fr']} = **{q['pt']}**")
+
             else:
-                st.error(f"❌ Mauvaise réponse !  |  La bonne réponse était : {target}")
                 st.session_state.history[st.session_state.index] = False
+                st.session_state.last_feedback = ("error", f"❌ **Erreur !** | La réponse était : **{target}**")
 
-            # passage automatique à la question suivante
-            st.session_state.index += 1
-            st.session_state.last_feedback = None
-            st.rerun()
-
-        if skip_btn:
-            # Passage simple : Reste gris (None) + Passage immédiat
-            st.session_state.last_feedback = ("error", f"Passé. La réponse était : **{target}**")
             st.session_state.index += 1
             st.rerun()
-            
-        if prev_btn and st.session_state.index > 0:
-            st.session_state.index -= 1
-            st.session_state.last_feedback = None
+
+        if skip:
+
+            st.session_state.history[st.session_state.index] = False  # Marqué comme faux si passé
+            st.session_state.last_feedback = ("warning", f"Question passée. La réponse était : **{target}**")
+
+            st.session_state.index += 1
             st.rerun()
+
     else:
-        # Question déjà répondue
-        is_juste = st.session_state.history[st.session_state.index]
-        msg = "✅ Déjà réussi !" if is_juste else "❌ Échoué précédemment."
-        color = "green" if is_juste else "red"
-        st.markdown(f"<h3 style='color:{color};'>{msg}</h3>", unsafe_allow_html=True)
-        st.write(f"Rappel : **{q['fr']}** = **{q['pt']}**")
-        
-        c1, c2, c3 = st.columns([1, 1, 1])
-        with c1:
-            if st.button("⬅️ Précédent"):
-                st.session_state.index -= 1
-                st.rerun()
-        with c3:
-            if st.button("Suivant ➡️"):
-                st.session_state.index += 1
-                st.session_state.last_feedback = None
-                st.rerun()
+
+        # Question déjà répondue : on affiche juste la correction
+        status_text = "✅ Tu as eu juste !" if st.session_state.history[st.session_state.index] else "❌ Tu as eu faux."
+        color = "green" if st.session_state.history[st.session_state.index] else "red"
+
+        st.markdown(
+            f"<div style='color:{color}; font-weight:bold; font-size:20px;'>{status_text}</div>",
+            unsafe_allow_html=True
+        )
+
+        st.write(f"Rappel de la traduction : **{q['fr']}** = **{q['pt']}**")
+
+        if st.button("Question suivante ➡️"):
+            st.session_state.index += 1
+            st.session_state.last_feedback = None
+            st.rerun()
 
 else:
     # FIN DU QUIZ
