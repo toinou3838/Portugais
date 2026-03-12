@@ -138,6 +138,66 @@ if 'base_db' not in st.session_state:
         {"fr": "pièce de monnaie", "pt": "moeda", "dir": 1},
         {"fr": "addition", "pt": "conta", "dir": 0},
         {"fr": "pourboire", "pt": "gorjeta", "dir": 1}
+        # --- CONJUGAISONS : SER (Être) ---
+        {"fr": "je suis", "pt": "eu sou", "dir": 0}, {"fr": "il est", "pt": "ele é", "dir": 1}, {"fr": "nous sommes", "pt": "nós somos", "dir": 0}, {"fr": "ils sont", "pt": "eles são", "dir": 1},
+        {"fr": "j'ai été", "pt": "eu fui", "dir": 1}, {"fr": "il a été", "pt": "ele foi", "dir": 0}, {"fr": "nous avons été", "pt": "nós fomos", "dir": 1}, {"fr": "ils ont été", "pt": "eles foram", "dir": 0},
+        {"fr": "je serai", "pt": "eu serei", "dir": 0}, {"fr": "il sera", "pt": "ele será", "dir": 1}, {"fr": "nous serons", "pt": "nós seremos", "dir": 0}, {"fr": "ils seront", "pt": "eles serão", "dir": 1},
+        {"fr": "je serais", "pt": "eu seria", "dir": 1}, {"fr": "il serait", "pt": "ele seria", "dir": 0}, {"fr": "nous serions", "pt": "nós seríamos", "dir": 1}, {"fr": "ils seraient", "pt": "eles seriam", "dir": 0},
+        {"fr": "j'étais", "pt": "eu era", "dir": 0}, {"fr": "il était", "pt": "ele era", "dir": 1}, {"fr": "nous étions", "pt": "nós éramos", "dir": 0}, {"fr": "ils étaient", "pt": "eles eram", "dir": 1},
+        {"fr": "que je sois", "pt": "que eu seja", "dir": 1}, {"fr": "qu'il soit", "pt": "que ele seja", "dir": 0}, {"fr": "que nous soyons", "pt": "que nós sejamos", "dir": 1}, {"fr": "qu'ils soient", "pt": "que eles sejam", "dir": 0},
+
+        # --- CONJUGAISONS : TER (Avoir) ---
+        {"fr": "j'ai", "pt": "eu tenho", "dir": 0}, {"fr": "il a", "pt": "ele tem", "dir": 1}, {"fr": "nous avons", "pt": "nós temos", "dir": 0}, {"fr": "ils ont", "pt": "eles têm", "dir": 1},
+        {"fr": "j'ai eu", "pt": "eu tive", "dir": 1}, {"fr": "il a eu", "pt": "ele teve", "dir": 0}, {"fr": "nous avons eu", "pt": "nós tivemos", "dir": 1}, {"fr": "ils ont eu", "pt": "eles tiveram", "dir": 0},
+        {"fr": "j'aurai", "pt": "eu terei", "dir": 0}, {"fr": "il aura", "pt": "ele terá", "dir": 1}, {"fr": "nous aurons", "pt": "nós teremos", "dir": 0}, {"fr": "ils auront", "pt": "eles terão", "dir": 1},
+        {"fr": "j'aurais", "pt": "eu teria", "dir": 1}, {"fr": "il aurait", "pt": "ele teria", "dir": 0}, {"fr": "nous aurions", "pt": "nós teríamos", "dir": 1}, {"fr": "ils auraient", "pt": "eles teriam", "dir": 0},
+        {"fr": "j'avais", "pt": "eu tinha", "dir": 0}, {"fr": "il avait", "pt": "ele tinha", "dir": 1}, {"fr": "nous avions", "pt": "nós tínhamos", "dir": 0}, {"fr": "ils avaient", "pt": "eles tinham", "dir": 1},
+        {"fr": "que j'aie", "pt": "que eu tenha", "dir": 1}, {"fr": "qu'il ait", "pt": "que ele tenha", "dir": 0}, {"fr": "que nous ayons", "pt": "que nós tenhamos", "dir": 1}, {"fr": "qu'ils aient", "pt": "que eles tenham", "dir": 0},
+
+        # --- CONJUGAISONS : FAZER (Faire) ---
+        {"fr": "je fais", "pt": "eu faço", "dir": 0}, {"fr": "il fait", "pt": "ele faz", "dir": 1}, {"fr": "nous faisons", "pt": "nós fazemos", "dir": 0}, {"fr": "ils font", "pt": "eles fazem", "dir": 1},
+        {"fr": "j'ai fait", "pt": "eu fiz", "dir": 1}, {"fr": "il a fait", "pt": "ele fez", "dir": 0}, {"fr": "nous avons fait", "pt": "nós fizemos", "dir": 1}, {"fr": "ils ont fait", "pt": "eles fizeram", "dir": 0},
+        {"fr": "je ferai", "pt": "eu farei", "dir": 0}, {"fr": "il fera", "pt": "ele fará", "dir": 1}, {"fr": "nous ferons", "pt": "nós faremos", "dir": 0}, {"fr": "ils feront", "pt": "eles farão", "dir": 1},
+        {"fr": "je ferais", "pt": "eu faria", "dir": 1}, {"fr": "il ferait", "pt": "ele faria", "dir": 0}, {"fr": "nous ferions", "pt": "nós faríamos", "dir": 1}, {"fr": "ils feraient", "pt": "eles fariam", "dir": 0},
+        {"fr": "je faisais", "pt": "eu fazia", "dir": 0}, {"fr": "il faisait", "pt": "ele fazia", "dir": 1}, {"fr": "nous faisions", "pt": "nós fazíamos", "dir": 0}, {"fr": "ils faisaient", "pt": "eles faziam", "dir": 1},
+        {"fr": "que je fasse", "pt": "que eu faça", "dir": 1}, {"fr": "qu'il fasse", "pt": "que ele faça", "dir": 0}, {"fr": "que nous fassions", "pt": "que nós façamos", "dir": 1}, {"fr": "qu'ils fassent", "pt": "que eles façam", "dir": 0},
+
+        # --- CONJUGAISONS : IR (Aller) ---
+        {"fr": "je vais", "pt": "eu vou", "dir": 0}, {"fr": "il va", "pt": "ele vai", "dir": 1}, {"fr": "nous allons", "pt": "nós vamos", "dir": 0}, {"fr": "ils vont", "pt": "eles vão", "dir": 1},
+        {"fr": "j'irais", "pt": "eu iria", "dir": 0}, {"fr": "il irait", "pt": "ele iria", "dir": 1}, {"fr": "nous irions", "pt": "nós iríamos", "dir": 0}, {"fr": "ils iraient", "pt": "eles iriam", "dir": 1},
+        {"fr": "j'allais", "pt": "eu ia", "dir": 1}, {"fr": "il allait", "pt": "ele ia", "dir": 0}, {"fr": "nous allions", "pt": "nós íamos", "dir": 1}, {"fr": "ils allaient", "pt": "eles iam", "dir": 0},
+        {"fr": "que j'aille", "pt": "que eu vá", "dir": 0}, {"fr": "qu'il aille", "pt": "que ele vá", "dir": 1}, {"fr": "que nous allions", "pt": "que nós vamos", "dir": 0}, {"fr": "qu'ils aillent", "pt": "que eles vão", "dir": 1},
+
+        # --- CONJUGAISONS : SABER (Savoir) ---
+        {"fr": "je sais", "pt": "eu sei", "dir": 1}, {"fr": "il sait", "pt": "ele sabe", "dir": 0}, {"fr": "nous savons", "pt": "nós sabemos", "dir": 1}, {"fr": "ils savent", "pt": "eles sabem", "dir": 0},
+        {"fr": "je saurai", "pt": "eu saberei", "dir": 0}, {"fr": "il saura", "pt": "ele saberá", "dir": 1}, {"fr": "nous saurons", "pt": "nós saberemos", "dir": 0}, {"fr": "ils sauront", "pt": "eles saberão", "dir": 1},
+        {"fr": "je saurais", "pt": "eu saberia", "dir": 1}, {"fr": "il saurait", "pt": "ele saberia", "dir": 0}, {"fr": "nous saurions", "pt": "nós saberíamos", "dir": 1}, {"fr": "ils sauraient", "pt": "eles saberiam", "dir": 0},
+        {"fr": "que je sache", "pt": "que eu saiba", "dir": 0}, {"fr": "qu'il sache", "pt": "que ele saiba", "dir": 1}, {"fr": "que nous sachions", "pt": "que nós saibamos", "dir": 0}, {"fr": "qu'ils sachent", "pt": "que eles saibam", "dir": 1},
+
+        # --- CONJUGAISONS : DAR (Donner) ---
+        {"fr": "je donne", "pt": "eu dou", "dir": 1}, {"fr": "il donne", "pt": "ele dá", "dir": 0}, {"fr": "nous donnons", "pt": "nós damos", "dir": 1}, {"fr": "ils donnent", "pt": "eles dão", "dir": 0},
+        {"fr": "j'ai donné", "pt": "eu dei", "dir": 0}, {"fr": "il a donné", "pt": "ele deu", "dir": 1}, {"fr": "nous avons donné", "pt": "nós demos", "dir": 0}, {"fr": "ils ont donné", "pt": "eles deram", "dir": 1},
+        {"fr": "que je donne (subj)", "pt": "que eu dê", "dir": 1}, {"fr": "qu'il donne (subj)", "pt": "que ele dê", "dir": 0}, {"fr": "que nous donnions", "pt": "que nós demos", "dir": 1}, {"fr": "qu'ils donnent (subj)", "pt": "que eles deem", "dir": 0},
+
+        # --- CONJUGAISONS : VER (Voir) ---
+        {"fr": "je vois", "pt": "eu vejo", "dir": 0}, {"fr": "il voit", "pt": "ele vê", "dir": 1}, {"fr": "nous voyons", "pt": "nós vemos", "dir": 0}, {"fr": "ils voient", "pt": "eles veem", "dir": 1},
+        {"fr": "j'ai vu", "pt": "eu vi", "dir": 1}, {"fr": "il a vu", "pt": "ele viu", "dir": 0}, {"fr": "nous avons vu", "pt": "nós vimos", "dir": 1}, {"fr": "ils ont vu", "pt": "eles viram", "dir": 0},
+        {"fr": "je voyais", "pt": "eu via", "dir": 0}, {"fr": "il voyait", "pt": "ele via", "dir": 1}, {"fr": "nous voyions", "pt": "nós víamos", "dir": 0}, {"fr": "ils voyaient", "pt": "eles viam", "dir": 1},
+
+        # --- CONJUGAISONS : FALAR (Parler - Modèle -AR) ---
+        {"fr": "je parle", "pt": "eu falo", "dir": 0}, {"fr": "il parle", "pt": "ele fala", "dir": 1}, {"fr": "nous parlons", "pt": "nós falamos", "dir": 0}, {"fr": "ils parlent", "pt": "eles falam", "dir": 1},
+        {"fr": "j'ai parlé", "pt": "eu falei", "dir": 1}, {"fr": "il a parlé", "pt": "ele falou", "dir": 0}, {"fr": "nous avons parlé", "pt": "nós falamos", "dir": 1}, {"fr": "ils ont parlé", "pt": "eles falaram", "dir": 0},
+        {"fr": "je parlerai", "pt": "eu falarei", "dir": 0}, {"fr": "il parlera", "pt": "ele falará", "dir": 1}, {"fr": "nous parlerons", "pt": "nós falaremos", "dir": 0}, {"fr": "ils parleront", "pt": "eles falarão", "dir": 1},
+        {"fr": "je parlais", "pt": "eu falava", "dir": 1}, {"fr": "il parlait", "pt": "ele falava", "dir": 0}, {"fr": "nous parlions", "pt": "nós falávamos", "dir": 1}, {"fr": "ils parlaient", "pt": "eles falavam", "dir": 0},
+
+        # --- CONJUGAISONS : COMER (Manger - Modèle -ER) ---
+        {"fr": "je mange", "pt": "eu como", "dir": 0}, {"fr": "il mange", "pt": "ele come", "dir": 1}, {"fr": "nous mangeons", "pt": "nós comemos", "dir": 0}, {"fr": "ils mangent", "pt": "eles comem", "dir": 1},
+        {"fr": "j'ai mangé", "pt": "eu comi", "dir": 1}, {"fr": "il a mangé", "pt": "ele comeu", "dir": 0}, {"fr": "nous avons mangé", "pt": "nós comemos", "dir": 1}, {"fr": "ils ont mangé", "pt": "eles comeram", "dir": 0},
+
+        # --- CONJUGAISONS : ABRIR (Ouvrir - Modèle -IR) ---
+        {"fr": "j'ouvre", "pt": "eu abro", "dir": 0}, {"fr": "il ouvre", "pt": "ele abre", "dir": 1}, {"fr": "nous ouvrons", "pt": "nós abrimos", "dir": 0}, {"fr": "ils ouvrent", "pt": "eles abrem", "dir": 1},
+        {"fr": "j'ai ouvert", "pt": "eu abri", "dir": 1}, {"fr": "il a ouvert", "pt": "ele abriu", "dir": 0}, {"fr": "nous avons ouvert", "pt": "nós abrimos", "dir": 1}, {"fr": "ils ont ouvert", "pt": "eles abriram", "dir": 0}
+        
     ]
 
 # --- SESSION STATE ---
@@ -259,7 +319,7 @@ if not st.session_state.quiz_started:
 total_q = len(st.session_state.db)
 
 # --- RÉCAPITULATIF COMPACT ---
-with st.expander("📍 État de progression", expanded=False):
+with st.expander("État de progression", expanded=False):
     cols_per_row = 10
     for row_start in range(0, total_q, cols_per_row):
         cols = st.columns(cols_per_row)
@@ -307,7 +367,7 @@ if not st.session_state.quiz_finished and not all_answered:
     if st.session_state.index >= total_q:
         st.header("Questions restantes")
         st.write(f"Il reste **{unanswered_count} questions** a completer.")
-        st.info("Utilise le menu de progression pour revenir sur une question passee.")
+        st.info("Utilise le menu de progression pour revenir sur une question passée.")
         st.stop()
 
     q = st.session_state.db[st.session_state.index]
@@ -342,11 +402,11 @@ if not st.session_state.quiz_finished and not all_answered:
 
             if dist <= 1:
                 st.session_state.history[st.session_state.index] = True
-                st.session_state.last_feedback = ("success", f"✅ **Correct !** | {q['fr']} = **{q['pt']}**")
+                st.session_state.last_feedback = ("success", f"**Correct !** {q['fr']} = **{q['pt']}**")
 
             else:
                 st.session_state.history[st.session_state.index] = False
-                st.session_state.last_feedback = ("error", f"❌ **Erreur !** | La réponse était : **{target}**")
+                st.session_state.last_feedback = ("error", f"**Erreur !** La réponse était : **{target}**")
 
             st.session_state.index = next_unanswered_index(st.session_state.index, st.session_state.history)
             if st.session_state.history.count(None) == 0:
@@ -386,7 +446,7 @@ else:
     st.write(f"Score final : **{score_total} / {total_q}**")
     
     if unanswered_count > 0:
-        st.warning(f"Il reste **{unanswered_count} questions** non repondues.")
+        st.warning(f"Il restait **{unanswered_count} questions** non repondues.")
     
     col1, col2 = st.columns(2)
     if col1.button("Refaire en sens inverse"):
