@@ -103,11 +103,11 @@ def progress_label(status, idx, current_idx):
     if idx == current_idx:
         prefix = "▶"
     elif status is True:
-        prefix = "✅"
+        prefix = "🤙"
     elif status is False:
-        prefix = "❌"
+        prefix = "💩"
     else:
-        prefix = "⬜"
+        prefix = "👀"
     return f"{prefix} {idx + 1}"
 
 def build_quiz_sample(sample_size):
@@ -187,22 +187,12 @@ with st.sidebar.expander("État de progression", expanded=False):
                 use_container_width=True,
             )
 
-# Feedback persistant
-if st.session_state.last_feedback:
-    f_type, f_msg = st.session_state.last_feedback
-    if f_type == "success":
-        st.success(f_msg)
-    elif f_type == "warning":
-        st.warning(f_msg)
-    else:
-        st.error(f_msg)
-
 st.divider()
 
 # --- QUIZ ---
 if not st.session_state.quiz_finished and not all_answered:
     if st.session_state.index >= total_q:
-        header_col, score_col, button_col = st.columns([3, 2, 2])
+        header_col, score_col, button_col = st.columns([2, 2, 2], vertical_alignment="center")
         with header_col:
             st.write(" ")
         with score_col:
@@ -221,7 +211,7 @@ if not st.session_state.quiz_finished and not all_answered:
     target = q["pt"] if q["dir"] == 0 else q["fr"]
     label = "Français ➔ Portugais" if q["dir"] == 0 else "Português ➔ Francês"
 
-    header_col, score_col, button_col = st.columns([3, 2, 2])
+    header_col, score_col, button_col = st.columns([2, 2, 2], vertical_alignment="center")
     with header_col:
         st.write(f"Question {st.session_state.index + 1}")
     with score_col:
@@ -246,10 +236,10 @@ if not st.session_state.quiz_finished and not all_answered:
             col1, col2 = st.columns(2)
 
             with col1:
-                submit = st.form_submit_button("VALIDER")
+                skip = st.form_submit_button("PASSER", use_container_width=True)
 
             with col2:
-                skip = st.form_submit_button("PASSER")
+                submit = st.form_submit_button("VALIDER", use_container_width=True)
 
         if submit:
 
@@ -274,6 +264,15 @@ if not st.session_state.quiz_finished and not all_answered:
             st.session_state.index += 1
             st.rerun()
 
+        if st.session_state.last_feedback:
+            f_type, f_msg = st.session_state.last_feedback
+            if f_type == "success":
+                st.success(f_msg)
+            elif f_type == "warning":
+                st.warning(f_msg)
+            else:
+                st.error(f_msg)
+
     else:
 
         # Question déjà répondue : on affiche juste la correction
@@ -294,8 +293,25 @@ if not st.session_state.quiz_finished and not all_answered:
                 st.session_state.quiz_finished = True
             st.rerun()
 
+        if st.session_state.last_feedback:
+            f_type, f_msg = st.session_state.last_feedback
+            if f_type == "success":
+                st.success(f_msg)
+            elif f_type == "warning":
+                st.warning(f_msg)
+            else:
+                st.error(f_msg)
+
 else:
     # FIN DU QUIZ
+    if st.session_state.last_feedback:
+        f_type, f_msg = st.session_state.last_feedback
+        if f_type == "success":
+            st.success(f_msg)
+        elif f_type == "warning":
+            st.warning(f_msg)
+        else:
+            st.error(f_msg)
     st.balloons()
     st.header("Fim do quiz ! 🎉")
     st.write(f"Score final : **{score_total} / {total_q}**")
