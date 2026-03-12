@@ -143,7 +143,7 @@ def return_to_setup():
     st.session_state.quiz_finished = False
 
 # --- UI ---
-st.title("🇧🇷 O Mestre do Português")
+st.title("🇧🇷 O caca do Português")
 
 if not st.session_state.quiz_started:
     st.subheader("Paramètres du quiz")
