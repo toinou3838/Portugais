@@ -255,7 +255,7 @@ if not st.session_state.quiz_finished and not all_answered:
 
     if not already_done:
 
-        with st.form(key='quiz_form', clear_on_submit=True):
+        with st.form(key='quiz_form', clear_on_submit=True, enter_to_submit=True):
 
             user_input = st.text_input("Ta réponse :", key="input_field")
 
