@@ -297,10 +297,10 @@ if not st.session_state.quiz_finished and not all_answered:
 
             col1, col2 = st.columns(2)
 
-            with col2:
+            with col1:
                 submit = st.form_submit_button("VALIDER", use_container_width=True)
 
-            with col1:
+            with col2:
                 skip = st.form_submit_button("PASSER", use_container_width=True)
 
         if submit:
