@@ -6,4 +6,4 @@ verbecc
 wordfreq
 deep-translator
 pathlib
-
+rapidfuzz

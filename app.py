@@ -2,6 +2,7 @@ import streamlit as st
 import unicodedata
 import random
 import json
+from rapidfuzz import fuzz
 
 # --- CONFIGURATION ---
 st.set_page_config(page_title="O Mestre do Português", page_icon="🇧🇷", layout="centered")
@@ -78,17 +79,34 @@ def normalize(text):
     text = text.replace(" ", "").replace("...", "").replace("?", "")
     return text.strip()
 
-def levenshtein(s1, s2):
-    s1, s2 = normalize(s1), normalize(s2)
-    if len(s1) < len(s2): return levenshtein(s2, s1)
-    if len(s2) == 0: return len(s1)
-    prev_row = range(len(s2) + 1)
-    for i, c1 in enumerate(s1):
-        curr_row = [i + 1]
-        for j, c2 in enumerate(s2):
-            curr_row.append(min(prev_row[j+1]+1, curr_row[j]+1, prev_row[j]+(c1!=c2)))
-        prev_row = curr_row
-    return prev_row[-1]
+def normalize_tokens(text):
+    text = text.lower()
+    text = "".join(c for c in unicodedata.normalize('NFD', text) if unicodedata.category(c) != 'Mn')
+    text = text.replace("...", "").replace("?", "")
+    return " ".join(text.split()).strip()
+
+def answer_similarity(user_input, target):
+    compact_user = normalize(user_input)
+    compact_target = normalize(target)
+    token_user = normalize_tokens(user_input)
+    token_target = normalize_tokens(target)
+
+    if not compact_user:
+        return 0
+
+    scores = [
+        fuzz.ratio(compact_user, compact_target),
+        fuzz.partial_ratio(compact_user, compact_target),
+        fuzz.token_set_ratio(token_user, token_target),
+    ]
+
+    if compact_user in compact_target or compact_target in compact_user:
+        scores.append(100)
+
+    return max(scores)
+
+def is_correct_answer(user_input, target):
+    return answer_similarity(user_input, target) >= 90
 
 def progress_class(status, idx, current_idx):
     classes = ["progress-box"]
@@ -172,9 +190,7 @@ def validate_current_answer(user_input=None):
     target = q["pt"] if q["dir"] == 0 else q["fr"]
     if user_input is None:
         user_input = st.session_state.get("input_field", "")
-    dist = levenshtein(user_input, target)
-
-    if dist <= 1:
+    if is_correct_answer(user_input, target):
         st.session_state.history[st.session_state.index] = True
         st.session_state.last_feedback = ("success", f"**Correct !** {q['fr']} = **{q['pt']}**")
     else:
