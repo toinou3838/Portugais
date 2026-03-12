@@ -195,9 +195,9 @@ def progress_label(status, idx, current_idx):
     if idx == current_idx:
         prefix = "▶"
     elif status is True:
-        prefix = "🟩"
+        prefix = "✅"
     elif status is False:
-        prefix = "🟥"
+        prefix = "❌"
     else:
         prefix = "⬜"
     return f"{prefix} {idx + 1}"
