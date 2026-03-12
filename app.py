@@ -33,6 +33,22 @@ st.markdown("""
             border-radius: 6px !important;
             font-size: 0.78rem !important;
         }
+
+        .quiz-progress {
+            width: 100%;
+            height: 12px;
+            background: #d9d9d9;
+            border-radius: 999px;
+            overflow: hidden;
+            margin: 0.35rem 0 1.25rem 0;
+        }
+
+        .quiz-progress-fill {
+            height: 100%;
+            background: #1f6fff;
+            border-radius: 999px;
+            transition: width 0.2s ease;
+        }
     </style>
     """, unsafe_allow_html=True)
 
@@ -142,6 +158,17 @@ def return_to_setup():
     st.session_state.last_feedback = None
     st.session_state.quiz_finished = False
 
+def render_progress_bar(answered_count, total_count):
+    percent = 0 if total_count == 0 else (answered_count / total_count) * 100
+    st.markdown(
+        (
+            '<div class="quiz-progress">'
+            f'<div class="quiz-progress-fill" style="width: {percent}%;"></div>'
+            "</div>"
+        ),
+        unsafe_allow_html=True,
+    )
+
 
 if not st.session_state.quiz_started:
     st.subheader("Paramètres du quiz")
@@ -162,34 +189,34 @@ total_q = len(st.session_state.db)
 score_total = sum(1 for x in st.session_state.history if x is True)
 unanswered_count = st.session_state.history.count(None)
 all_answered = unanswered_count == 0
+answered_count = total_q - unanswered_count
 
 # --- RÉCAPITULATIF COMPACT ---
-with st.sidebar.expander("État de progression", expanded=False):
-    cols_per_row = 10
-    for row_start in range(0, total_q, cols_per_row):
-        cols = st.columns(cols_per_row)
-        for offset, col in enumerate(cols):
-            idx = row_start + offset
-            if idx >= total_q:
-                continue
-            status = st.session_state.history[idx]
-            button_type = "secondary"
-            if idx == st.session_state.index:
-                button_type = "primary"
-            col.button(
-                progress_label(status, idx, st.session_state.index),
-                key=f"nav_{idx}",
-                on_click=jump_to_question,
-                args=(idx,),
-                type=button_type,
-                use_container_width=True,
-            )
-
-st.divider()
+st.sidebar.markdown("**État de progression**")
+cols_per_row = 2
+for row_start in range(0, total_q, cols_per_row):
+    cols = st.sidebar.columns(cols_per_row)
+    for offset, col in enumerate(cols):
+        idx = row_start + offset
+        if idx >= total_q:
+            continue
+        status = st.session_state.history[idx]
+        button_type = "secondary"
+        if idx == st.session_state.index:
+            button_type = "primary"
+        col.button(
+            progress_label(status, idx, st.session_state.index),
+            key=f"nav_{idx}",
+            on_click=jump_to_question,
+            args=(idx,),
+            type=button_type,
+            use_container_width=True,
+        )
 
 # --- QUIZ ---
 if not st.session_state.quiz_finished and not all_answered:
     if st.session_state.index >= total_q:
+        render_progress_bar(answered_count, total_q)
         header_col, score_col, button_col = st.columns([2, 2, 2], vertical_alignment="center")
         with header_col:
             st.write(" ")
@@ -209,6 +236,7 @@ if not st.session_state.quiz_finished and not all_answered:
     target = q["pt"] if q["dir"] == 0 else q["fr"]
     label = "Français ➔ Portugais" if q["dir"] == 0 else "Português ➔ Francês"
 
+    render_progress_bar(answered_count, total_q)
     header_col, score_col, button_col = st.columns([2, 2, 2], vertical_alignment="center")
     with header_col:
         st.write(f"Question {st.session_state.index + 1}")
@@ -257,7 +285,7 @@ if not st.session_state.quiz_finished and not all_answered:
             st.rerun()
 
         if skip:
-            st.session_state.last_feedback = ("warning", "Question passee. Elle reste non repondue.")
+            st.session_state.last_feedback = ("warning", "Question passée. Elle reste non repondue.")
 
             st.session_state.index += 1
             st.rerun()
@@ -310,6 +338,7 @@ else:
             st.warning(f_msg)
         else:
             st.error(f_msg)
+    render_progress_bar(answered_count, total_q)
     st.balloons()
     st.header("Fim do quiz ! 🎉")
     st.write(f"Score final : **{score_total} / {total_q}**")
