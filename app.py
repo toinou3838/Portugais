@@ -1,5 +1,6 @@
 import streamlit as st
 import unicodedata
+import random
 
 # --- CONFIGURATION ---
 st.set_page_config(page_title="O Mestre do Português", page_icon="🇧🇷", layout="centered")
@@ -35,8 +36,8 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # --- BASE DE DONNÉES (100 QUESTIONS) ---
-if 'db' not in st.session_state:
-    st.session_state.db = [
+if 'base_db' not in st.session_state:
+    st.session_state.base_db = [
         {"fr": "prendre un taxi", "pt": "pegar um táxi", "dir": 0},
         {"fr": "ça va / tout va bien", "pt": "tudo bem", "dir": 1},
         {"fr": "tout le livre", "pt": "todo o livro", "dir": 0},
@@ -142,9 +143,12 @@ if 'db' not in st.session_state:
 # --- SESSION STATE ---
 if 'index' not in st.session_state:
     st.session_state.index = 0
-    st.session_state.history = [None] * len(st.session_state.db) # None, True, False
+    st.session_state.history = []
     st.session_state.last_feedback = None
     st.session_state.quiz_finished = False
+    st.session_state.quiz_started = False
+    st.session_state.selected_n = min(20, len(st.session_state.base_db))
+    st.session_state.db = []
 
 # --- LOGIQUE ---
 def normalize(text):
@@ -202,8 +206,56 @@ def progress_label(status, idx, current_idx):
         prefix = "⬜"
     return f"{prefix} {idx + 1}"
 
+def build_quiz_sample(sample_size):
+    sample_size = min(sample_size, len(st.session_state.base_db))
+    return [item.copy() for item in random.sample(st.session_state.base_db, sample_size)]
+
+def reset_quiz_state():
+    st.session_state.index = 0
+    st.session_state.history = [None] * len(st.session_state.db)
+    st.session_state.last_feedback = None
+    st.session_state.quiz_finished = False
+
+def start_new_quiz(sample_size):
+    st.session_state.selected_n = min(sample_size, len(st.session_state.base_db))
+    st.session_state.db = build_quiz_sample(st.session_state.selected_n)
+    st.session_state.quiz_started = True
+    reset_quiz_state()
+
+def restart_inverted_quiz():
+    st.session_state.db = [
+        {"fr": item["fr"], "pt": item["pt"], "dir": 1 if item["dir"] == 0 else 0}
+        for item in st.session_state.db
+    ]
+    st.session_state.quiz_started = True
+    reset_quiz_state()
+
+def return_to_setup():
+    st.session_state.quiz_started = False
+    st.session_state.db = []
+    st.session_state.index = 0
+    st.session_state.history = []
+    st.session_state.last_feedback = None
+    st.session_state.quiz_finished = False
+
 # --- UI ---
 st.title("🇧🇷 O Mestre do Português")
+
+if not st.session_state.quiz_started:
+    st.subheader("Paramètres du quiz")
+    max_questions = len(st.session_state.base_db)
+    selected_n = st.number_input(
+        "Nombre de questions",
+        min_value=1,
+        max_value=max_questions,
+        value=st.session_state.selected_n,
+        step=1,
+    )
+    if st.button("Commencer le quiz"):
+        start_new_quiz(int(selected_n))
+        st.rerun()
+    st.stop()
+
 total_q = len(st.session_state.db)
 
 # --- RÉCAPITULATIF COMPACT ---
@@ -336,19 +388,10 @@ else:
     if unanswered_count > 0:
         st.warning(f"Il reste **{unanswered_count} questions** non repondues.")
     
-    if st.button("Recommencer tout le test"):
-        st.session_state.index = 0
-        st.session_state.history = [None] * total_q
-        st.session_state.last_feedback = None
-        st.session_state.quiz_finished = False
+    col1, col2 = st.columns(2)
+    if col1.button("Refaire en sens inverse"):
+        restart_inverted_quiz()
         st.rerun()
-
-# --- SIDEBAR ---
-if st.sidebar.button("🔄 Inverser tout le Quiz"):
-    for item in st.session_state.db:
-        item["dir"] = 1 if item["dir"] == 0 else 0
-    st.session_state.index = 0
-    st.session_state.history = [None] * total_q
-    st.session_state.last_feedback = None
-    st.session_state.quiz_finished = False
-    st.rerun()
+    if col2.button("Nouveau quiz aléatoire"):
+        return_to_setup()
+        st.rerun()
