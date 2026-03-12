@@ -302,7 +302,7 @@ if not st.session_state.quiz_finished and not all_answered:
     else:
 
         # Question déjà répondue : on affiche juste la correction
-        status_text = "✅ Tu as eu juste !" if st.session_state.history[st.session_state.index] else "❌ Tu as eu faux."
+        status_text = " Tu as eu juste !" if st.session_state.history[st.session_state.index] else " Tu as eu faux."
         color = "green" if st.session_state.history[st.session_state.index] else "red"
 
         st.markdown(
