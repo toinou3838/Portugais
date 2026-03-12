@@ -34,6 +34,10 @@ st.markdown("""
             font-size: 0.78rem !important;
         }
 
+        .stForm [data-testid="stFormSubmitButton"]:first-of-type {
+            display: none;
+        }
+
         .quiz-progress {
             width: 100%;
             height: 12px;
@@ -41,7 +45,6 @@ st.markdown("""
             border-radius: 999px;
             overflow: hidden;
             margin: 0.35rem 0 1.25rem 0;
-            position: relative;
         }
 
         .quiz-progress-fill {
@@ -49,22 +52,6 @@ st.markdown("""
             background: #1f6fff;
             border-radius: 999px;
             transition: width 0.2s ease;
-        }
-
-        .quiz-progress-text {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 0.72rem;
-            font-weight: 600;
-            color: #ffffff;
-            line-height: 1;
-            pointer-events: none;
-        }
-
-        .stForm [data-testid="stFormSubmitButton"]:first-of-type {
-            display: none;
         }
     </style>
     """, unsafe_allow_html=True)
@@ -220,7 +207,6 @@ def render_progress_bar(answered_count, total_count):
         (
             f'<div class="quiz-progress" title="{percent:.0f}% de progression">'
             f'<div class="quiz-progress-fill" style="width: {percent}%;"></div>'
-            f'<div class="quiz-progress-text">{percent:.0f}%</div>'
             "</div>"
         ),
         unsafe_allow_html=True,
@@ -311,7 +297,7 @@ if not st.session_state.quiz_finished and not all_answered:
     already_done = st.session_state.history[st.session_state.index] is not None
 
     if not already_done:
-        with st.form(key='quiz_form', clear_on_submit=False, enter_to_submit=True):
+        with st.form(key="quiz_form", clear_on_submit=False, enter_to_submit=True):
             st.text_input("Ta réponse :", key="input_field")
             hidden_submit = st.form_submit_button("ENTER_VALIDATE")
 
@@ -323,9 +309,7 @@ if not st.session_state.quiz_finished and not all_answered:
             with col2:
                 submit = st.form_submit_button("VALIDER", use_container_width=True)
 
-        submit = submit or hidden_submit
-
-        if submit:
+        if hidden_submit or submit:
             validate_current_answer()
             st.rerun()
 
