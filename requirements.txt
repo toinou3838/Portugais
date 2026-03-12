@@ -3,3 +3,7 @@ json
 random
 unicodedata
 verbecc
+wordfreq
+deep-translator
+pathlib
+
