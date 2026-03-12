@@ -137,7 +137,7 @@ if 'base_db' not in st.session_state:
         {"fr": "portefeuille", "pt": "carteira", "dir": 0},
         {"fr": "pièce de monnaie", "pt": "moeda", "dir": 1},
         {"fr": "addition", "pt": "conta", "dir": 0},
-        {"fr": "pourboire", "pt": "gorjeta", "dir": 1}
+        {"fr": "pourboire", "pt": "gorjeta", "dir": 1},
         # --- CONJUGAISONS : SER (Être) ---
         {"fr": "je suis", "pt": "eu sou", "dir": 0}, {"fr": "il est", "pt": "ele é", "dir": 1}, {"fr": "nous sommes", "pt": "nós somos", "dir": 0}, {"fr": "ils sont", "pt": "eles são", "dir": 1},
         {"fr": "j'ai été", "pt": "eu fui", "dir": 1}, {"fr": "il a été", "pt": "ele foi", "dir": 0}, {"fr": "nous avons été", "pt": "nós fomos", "dir": 1}, {"fr": "ils ont été", "pt": "eles foram", "dir": 0},
