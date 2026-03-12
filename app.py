@@ -161,9 +161,12 @@ if not st.session_state.quiz_started:
     st.stop()
 
 total_q = len(st.session_state.db)
+score_total = sum(1 for x in st.session_state.history if x is True)
+unanswered_count = st.session_state.history.count(None)
+all_answered = unanswered_count == 0
 
 # --- RÉCAPITULATIF COMPACT ---
-with st.expander("État de progression", expanded=False):
+with st.sidebar.expander("État de progression", expanded=False):
     cols_per_row = 10
     for row_start in range(0, total_q, cols_per_row):
         cols = st.columns(cols_per_row)
@@ -184,16 +187,6 @@ with st.expander("État de progression", expanded=False):
                 use_container_width=True,
             )
 
-# Score et Progression
-score_total = sum(1 for x in st.session_state.history if x is True)
-unanswered_count = st.session_state.history.count(None)
-all_answered = unanswered_count == 0
-st.write(f"**Score : {score_total} / {total_q}**")
-
-if st.button("Terminer le quiz"):
-    st.session_state.quiz_finished = True
-    st.rerun()
-
 # Feedback persistant
 if st.session_state.last_feedback:
     f_type, f_msg = st.session_state.last_feedback
@@ -209,6 +202,15 @@ st.divider()
 # --- QUIZ ---
 if not st.session_state.quiz_finished and not all_answered:
     if st.session_state.index >= total_q:
+        header_col, score_col, button_col = st.columns([3, 2, 2])
+        with header_col:
+            st.write(" ")
+        with score_col:
+            st.write(f"**Score : {score_total} / {total_q}**")
+        with button_col:
+            if st.button("Terminer le quiz", key="finish_remaining"):
+                st.session_state.quiz_finished = True
+                st.rerun()
         st.header("Questions restantes")
         st.write(f"Il reste **{unanswered_count} questions** a completer.")
         st.info("Utilise le menu de progression pour revenir sur une question passée.")
@@ -218,8 +220,17 @@ if not st.session_state.quiz_finished and not all_answered:
     prompt = q["fr"] if q["dir"] == 0 else q["pt"]
     target = q["pt"] if q["dir"] == 0 else q["fr"]
     label = "Français ➔ Portugais" if q["dir"] == 0 else "Português ➔ Francês"
-    
-    st.write(f"Question {st.session_state.index + 1}")
+
+    header_col, score_col, button_col = st.columns([3, 2, 2])
+    with header_col:
+        st.write(f"Question {st.session_state.index + 1}")
+    with score_col:
+        st.write(f"**Score : {score_total} / {total_q}**")
+    with button_col:
+        if st.button("Terminer le quiz", key="finish_quiz"):
+            st.session_state.quiz_finished = True
+            st.rerun()
+
     st.subheader(prompt.upper())
     st.caption(label)
 
