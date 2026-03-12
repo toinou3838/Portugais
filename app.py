@@ -192,10 +192,10 @@ def validate_current_answer(user_input=None):
         user_input = st.session_state.get("input_field", "")
     if is_correct_answer(user_input, target):
         st.session_state.history[st.session_state.index] = True
-        st.session_state.last_feedback = ("success", f"**Correct !** {q['fr']} = **{q['pt']}**")
+        st.session_state.last_feedback = ("success", f"**Correct !** {q['fr']} = **{q['pt']}**, tu as répondu : **{user_input}**")
     else:
         st.session_state.history[st.session_state.index] = False
-        st.session_state.last_feedback = ("error", f"**Erreur !** La réponse était : **{target}**")
+        st.session_state.last_feedback = ("error", f"**Erreur !** La réponse était : **{target}**,tu as répondu : **{user_input}**")
 
     st.session_state.index = next_unanswered_index(st.session_state.index, st.session_state.history)
     if st.session_state.history.count(None) == 0:
