@@ -69,6 +69,7 @@ if 'index' not in st.session_state:
     st.session_state.quiz_started = False
     st.session_state.selected_n = min(20, len(st.session_state.base_db))
     st.session_state.db = []
+    st.session_state.input_field = ""
 
 # --- LOGIQUE ---
 def normalize(text):
@@ -157,12 +158,50 @@ def return_to_setup():
     st.session_state.history = []
     st.session_state.last_feedback = None
     st.session_state.quiz_finished = False
+    st.session_state.input_field = ""
+
+def validate_current_answer():
+    if st.session_state.quiz_finished or not st.session_state.db:
+        return
+    if st.session_state.index >= len(st.session_state.db):
+        return
+    if st.session_state.history[st.session_state.index] is not None:
+        return
+
+    q = st.session_state.db[st.session_state.index]
+    target = q["pt"] if q["dir"] == 0 else q["fr"]
+    user_input = st.session_state.input_field
+    dist = levenshtein(user_input, target)
+
+    if dist <= 1:
+        st.session_state.history[st.session_state.index] = True
+        st.session_state.last_feedback = ("success", f"**Correct !** {q['fr']} = **{q['pt']}**")
+    else:
+        st.session_state.history[st.session_state.index] = False
+        st.session_state.last_feedback = ("error", f"**Erreur !** La réponse était : **{target}**")
+
+    st.session_state.input_field = ""
+    st.session_state.index = next_unanswered_index(st.session_state.index, st.session_state.history)
+    if st.session_state.history.count(None) == 0:
+        st.session_state.quiz_finished = True
+
+def skip_current_question():
+    if st.session_state.quiz_finished or not st.session_state.db:
+        return
+    if st.session_state.index >= len(st.session_state.db):
+        return
+    if st.session_state.history[st.session_state.index] is not None:
+        return
+
+    st.session_state.last_feedback = ("warning", "Question passée. Elle reste non repondue.")
+    st.session_state.input_field = ""
+    st.session_state.index += 1
 
 def render_progress_bar(answered_count, total_count):
     percent = 0 if total_count == 0 else (answered_count / total_count) * 100
     st.markdown(
         (
-            '<div class="quiz-progress">'
+            f'<div class="quiz-progress" title="{percent:.0f}% de progression">'
             f'<div class="quiz-progress-fill" style="width: {percent}%;"></div>'
             "</div>"
         ),
@@ -254,41 +293,23 @@ if not st.session_state.quiz_finished and not all_answered:
     already_done = st.session_state.history[st.session_state.index] is not None
 
     if not already_done:
+        st.text_input(
+            "Ta réponse :",
+            key="input_field",
+            on_change=validate_current_answer,
+        )
 
-        with st.form(key='quiz_form', clear_on_submit=True, enter_to_submit=True):
+        col1, col2 = st.columns(2)
 
-            user_input = st.text_input("Ta réponse :", key="input_field")
+        with col1:
+            if st.button("PASSER", use_container_width=True):
+                skip_current_question()
+                st.rerun()
 
-            col1, col2 = st.columns(2)
-
-            with col1:
-                skip = st.form_submit_button("PASSER", use_container_width=True)
-
-            with col2:
-                submit = st.form_submit_button("VALIDER", use_container_width=True)
-
-        if submit:
-
-            dist = levenshtein(user_input, target)
-
-            if dist <= 1:
-                st.session_state.history[st.session_state.index] = True
-                st.session_state.last_feedback = ("success", f"**Correct !** {q['fr']} = **{q['pt']}**")
-
-            else:
-                st.session_state.history[st.session_state.index] = False
-                st.session_state.last_feedback = ("error", f"**Erreur !** La réponse était : **{target}**")
-
-            st.session_state.index = next_unanswered_index(st.session_state.index, st.session_state.history)
-            if st.session_state.history.count(None) == 0:
-                st.session_state.quiz_finished = True
-            st.rerun()
-
-        if skip:
-            st.session_state.last_feedback = ("warning", "Question passée. Elle reste non repondue.")
-
-            st.session_state.index += 1
-            st.rerun()
+        with col2:
+            if st.button("VALIDER", use_container_width=True):
+                validate_current_answer()
+                st.rerun()
 
         if st.session_state.last_feedback:
             f_type, f_msg = st.session_state.last_feedback
