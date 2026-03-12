@@ -195,7 +195,7 @@ def validate_current_answer(user_input=None):
         st.session_state.last_feedback = ("success", f"**Correct !** {q['fr']} = **{q['pt']}**, tu as répondu : **{user_input}**")
     else:
         st.session_state.history[st.session_state.index] = False
-        st.session_state.last_feedback = ("error", f"**Erreur !** La réponse était : **{target}**,tu as répondu : **{user_input}**")
+        st.session_state.last_feedback = ("error", f"**Erreur !** La réponse était : **{target}**, tu as répondu : **{user_input}**")
 
     st.session_state.index = next_unanswered_index(st.session_state.index, st.session_state.history)
     if st.session_state.history.count(None) == 0:
@@ -234,7 +234,7 @@ if not st.session_state.quiz_started:
         value=st.session_state.selected_n,
         step=1,
     )
-    if st.button("Commencer lcacae quiz"):
+    if st.button("Commencer le quiz"):
         start_new_quiz(int(selected_n))
         st.rerun()
     st.stop()
