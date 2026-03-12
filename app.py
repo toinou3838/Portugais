@@ -2,7 +2,7 @@ import streamlit as st
 import unicodedata
 import random
 import json
-from rapidfuzz import fuzz
+from rapidfuzz import fuzz, process
 
 # --- CONFIGURATION ---
 st.set_page_config(page_title="O Mestre do Português", page_icon="🇧🇷", layout="centered")
@@ -86,27 +86,23 @@ def normalize_tokens(text):
     return " ".join(text.split()).strip()
 
 def answer_similarity(user_input, target):
-    compact_user = normalize(user_input)
-    compact_target = normalize(target)
-    token_user = normalize_tokens(user_input)
-    token_target = normalize_tokens(target)
+    user = normalize_tokens(user_input)
+    target = normalize_tokens(target)
 
-    if not compact_user:
+    if not user:
         return 0
 
-    scores = [
-        fuzz.ratio(compact_user, compact_target),
-        fuzz.partial_ratio(compact_user, compact_target),
-        fuzz.token_set_ratio(token_user, token_target),
-    ]
+    score = fuzz.WRatio(user, target)
 
-    if compact_user in compact_target or compact_target in compact_user:
-        scores.append(100)
+    # tolérance supplémentaire si inclusion
+    if user in target or target in user:
+        score = max(score, 95)
 
-    return max(scores)
+    return score
+
 
 def is_correct_answer(user_input, target):
-    return answer_similarity(user_input, target) >= 90
+    return answer_similarity(user_input, target) >= 85
 
 def progress_class(status, idx, current_idx):
     classes = ["progress-box"]
