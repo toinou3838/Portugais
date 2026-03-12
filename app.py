@@ -34,10 +34,6 @@ st.markdown("""
             font-size: 0.78rem !important;
         }
 
-        .stForm [data-testid="stFormSubmitButton"]:first-of-type {
-            display: none;
-        }
-
         .quiz-progress {
             width: 100%;
             height: 12px;
@@ -164,7 +160,7 @@ def return_to_setup():
     st.session_state.quiz_finished = False
     st.session_state.input_field = ""
 
-def validate_current_answer():
+def validate_current_answer(user_input=None):
     if st.session_state.quiz_finished or not st.session_state.db:
         return
     if st.session_state.index >= len(st.session_state.db):
@@ -174,7 +170,8 @@ def validate_current_answer():
 
     q = st.session_state.db[st.session_state.index]
     target = q["pt"] if q["dir"] == 0 else q["fr"]
-    user_input = st.session_state.input_field
+    if user_input is None:
+        user_input = st.session_state.get("input_field", "")
     dist = levenshtein(user_input, target)
 
     if dist <= 1:
@@ -184,7 +181,6 @@ def validate_current_answer():
         st.session_state.history[st.session_state.index] = False
         st.session_state.last_feedback = ("error", f"**Erreur !** La réponse était : **{target}**")
 
-    st.session_state.input_field = ""
     st.session_state.index = next_unanswered_index(st.session_state.index, st.session_state.history)
     if st.session_state.history.count(None) == 0:
         st.session_state.quiz_finished = True
@@ -198,7 +194,6 @@ def skip_current_question():
         return
 
     st.session_state.last_feedback = ("warning", "Question passée. Elle reste non repondue.")
-    st.session_state.input_field = ""
     st.session_state.index += 1
 
 def render_progress_bar(answered_count, total_count):
@@ -297,20 +292,19 @@ if not st.session_state.quiz_finished and not all_answered:
     already_done = st.session_state.history[st.session_state.index] is not None
 
     if not already_done:
-        with st.form(key="quiz_form", clear_on_submit=False, enter_to_submit=True):
-            st.text_input("Ta réponse :", key="input_field")
-            hidden_submit = st.form_submit_button("ENTER_VALIDATE")
+        with st.form(key="quiz_form", clear_on_submit=True, enter_to_submit=True):
+            user_input = st.text_input("Ta réponse :", key="input_field")
 
             col1, col2 = st.columns(2)
-
-            with col1:
-                skip = st.form_submit_button("PASSER", use_container_width=True)
 
             with col2:
                 submit = st.form_submit_button("VALIDER", use_container_width=True)
 
-        if hidden_submit or submit:
-            validate_current_answer()
+            with col1:
+                skip = st.form_submit_button("PASSER", use_container_width=True)
+
+        if submit:
+            validate_current_answer(user_input)
             st.rerun()
 
         if skip:
