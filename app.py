@@ -234,7 +234,7 @@ if not st.session_state.quiz_started:
         value=st.session_state.selected_n,
         step=1,
     )
-    if st.button("Commencer le quiz"):
+    if st.button("Commencer lcacae quiz"):
         start_new_quiz(int(selected_n))
         st.rerun()
     st.stop()
