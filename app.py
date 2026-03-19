@@ -2,7 +2,12 @@ import streamlit as st
 import unicodedata
 import random
 import json
-from rapidfuzz import fuzz, process
+from pathlib import Path
+
+import pandas as pd
+from deep_translator import GoogleTranslator
+from rapidfuzz import fuzz
+from st_gsheets_connection import GSheetsConnection
 
 # --- CONFIGURATION ---
 st.set_page_config(page_title="O Mestre do Português", page_icon="🇧🇷", layout="centered")
@@ -53,37 +58,27 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- BASE DE DONNÉES (100 QUESTIONS) ---
-if 'base_db' not in st.session_state:
-    st.session_state.base_db = []
-    with open("vocabulary.json", encoding="utf-8") as f:
-        st.session_state.base_db.extend(json.load(f))
-    with open("verbs_dataset.json", encoding="utf-8") as f:
-        st.session_state.base_db.extend(json.load(f))
-    
-# --- SESSION STATE ---
-if 'index' not in st.session_state:
-    st.session_state.index = 0
-    st.session_state.history = []
-    st.session_state.last_feedback = None
-    st.session_state.quiz_finished = False
-    st.session_state.quiz_started = False
-    st.session_state.selected_n = min(20, len(st.session_state.base_db))
-    st.session_state.db = []
-    st.session_state.input_field = ""
 
-# --- LOGIQUE ---
+
+# --- CONNEXION BDD CLOUD (Google Sheets) ---
+# Dans Streamlit Cloud, tu devras configurer l'URL dans les "Secrets"
+conn = st.connection("gsheets", type=GSheetsConnection)
+VERBS_DATASET_PATH = Path("verbs_dataset.json")
+
+
 def normalize(text):
-    text = text.lower()
+    text = str(text).lower()
     text = "".join(c for c in unicodedata.normalize('NFD', text) if unicodedata.category(c) != 'Mn')
     text = text.replace(" ", "").replace("...", "").replace("?", "")
     return text.strip()
 
+
 def normalize_tokens(text):
-    text = text.lower()
+    text = str(text).lower()
     text = "".join(c for c in unicodedata.normalize('NFD', text) if unicodedata.category(c) != 'Mn')
     text = text.replace("...", "").replace("?", "")
     return " ".join(text.split()).strip()
+
 
 def answer_similarity(user_input, target):
     user = normalize_tokens(user_input)
@@ -94,11 +89,163 @@ def answer_similarity(user_input, target):
 
     score = fuzz.WRatio(user, target)
 
-    # tolérance supplémentaire si inclusion
     if user in target or target in user:
         score = max(score, 95)
 
     return score
+
+
+def sanitize_dir(value):
+    try:
+        int_value = int(value)
+        if int_value in (0, 1):
+            return int_value
+    except (TypeError, ValueError):
+        pass
+    return random.randint(0, 1)
+
+
+def sanitize_entry(entry):
+    fr = str(entry.get("fr", "")).strip()
+    pt = str(entry.get("pt", "")).strip()
+    if not fr or not pt:
+        return None
+    return {"fr": fr, "pt": pt, "dir": sanitize_dir(entry.get("dir"))}
+
+
+def deduplicate_entries(entries):
+    unique_entries = []
+    seen = set()
+
+    for entry in entries:
+        sanitized = sanitize_entry(entry)
+        if not sanitized:
+            continue
+
+        key = (normalize_tokens(sanitized["fr"]), normalize_tokens(sanitized["pt"]))
+        if key in seen:
+            continue
+
+        seen.add(key)
+        unique_entries.append(sanitized)
+
+    return unique_entries
+
+
+def load_verbs_dataset():
+    if not VERBS_DATASET_PATH.exists():
+        return []
+
+    with VERBS_DATASET_PATH.open("r", encoding="utf-8") as f:
+        data = json.load(f)
+    return deduplicate_entries(data)
+
+
+def read_sheet_entries():
+    try:
+        df = conn.read(worksheet="Feuille1", ttl="10m")
+    except Exception:
+        return []
+
+    if df is None or df.empty:
+        return []
+
+    return deduplicate_entries(df.to_dict("records"))
+
+
+def load_base_db():
+    verbs_entries = load_verbs_dataset()
+    sheet_entries = read_sheet_entries()
+    return deduplicate_entries([*verbs_entries, *sheet_entries])
+
+
+def save_word_to_sheet(entry):
+    current_df = conn.read(worksheet="Feuille1")
+    new_row_df = pd.DataFrame([entry])
+    if current_df is None or current_df.empty:
+        updated_df = new_row_df
+    else:
+        updated_df = pd.concat([current_df, new_row_df], ignore_index=True)
+    conn.update(worksheet="Feuille1", data=updated_df)
+
+
+def verify_translation_pair(fr_word, pt_word):
+    translator_fr_pt = GoogleTranslator(source="fr", target="pt")
+    translator_pt_fr = GoogleTranslator(source="pt", target="fr")
+
+    expected_pt = translator_fr_pt.translate(fr_word)
+    expected_fr = translator_pt_fr.translate(pt_word)
+
+    fr_score = answer_similarity(expected_fr, fr_word)
+    pt_score = answer_similarity(expected_pt, pt_word)
+
+    return {
+        "ok": fr_score >= 85 or pt_score >= 85,
+        "expected_pt": expected_pt,
+        "expected_fr": expected_fr,
+        "fr_score": fr_score,
+        "pt_score": pt_score,
+    }
+
+if 'base_db' not in st.session_state:
+    st.session_state.base_db = load_base_db()
+
+# --- SECTION ADMINISTRATION (Ajouter un mot) ---
+with st.sidebar.expander("➕ Ajouter du vocabulaire"):
+    with st.form("add_word_form", clear_on_submit=True):
+        new_fr = st.text_input("Mot en Français")
+        new_pt = st.text_input("Mot en Portugais")
+        verify_before_save = st.checkbox("Vérifier la traduction automatiquement", value=True)
+        submit_new = st.form_submit_button("Ajouter à la base globale")
+        
+        if submit_new and new_fr and new_pt:
+            new_row = {"fr": new_fr.strip(), "pt": new_pt.strip(), "dir": random.randint(0, 1)}
+
+            existing_pairs = {
+                (normalize_tokens(item["fr"]), normalize_tokens(item["pt"]))
+                for item in st.session_state.base_db
+            }
+            new_pair = (normalize_tokens(new_row["fr"]), normalize_tokens(new_row["pt"]))
+            if new_pair in existing_pairs:
+                st.warning("Ce mot existe déjà dans la base chargée.")
+            else:
+                verification = None
+                if verify_before_save:
+                    try:
+                        verification = verify_translation_pair(new_row["fr"], new_row["pt"])
+                    except Exception as exc:
+                        st.warning(f"Vérification indisponible pour le moment : {exc}")
+
+                if verification and not verification["ok"]:
+                    st.error(
+                        "La traduction saisie semble incohérente. "
+                        f"FR→PT suggéré : {verification['expected_pt']} | "
+                        f"PT→FR suggéré : {verification['expected_fr']}"
+                    )
+                else:
+                    try:
+                        save_word_to_sheet(new_row)
+                        st.session_state.base_db = deduplicate_entries([*st.session_state.base_db, new_row])
+                        if verification:
+                            st.success(
+                                "Mot ajouté dans Google Sheets. "
+                                f"Vérification OK (FR→PT : {verification['expected_pt']})."
+                            )
+                        else:
+                            st.success("Mot ajouté dans Google Sheets.")
+                    except Exception as exc:
+                        st.error(f"Impossible d'ajouter le mot dans Google Sheets : {exc}")
+
+# --- SESSION STATE ---
+if 'index' not in st.session_state:
+    st.session_state.index = 0
+    st.session_state.history = []
+    st.session_state.last_feedback = None
+    st.session_state.quiz_finished = False
+    st.session_state.quiz_started = False
+    st.session_state.selected_n = min(20, len(st.session_state.base_db))
+    st.session_state.db = []
+    st.session_state.input_field = ""
 
 
 def is_correct_answer(user_input, target):
