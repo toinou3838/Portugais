@@ -7,7 +7,7 @@ from pathlib import Path
 import pandas as pd
 from deep_translator import GoogleTranslator
 from rapidfuzz import fuzz
-from st_gsheets_connection import GSheetsConnection
+from streamlit_gsheets import GSheetsConnection
 
 # --- CONFIGURATION ---
 st.set_page_config(page_title="O Mestre do Português", page_icon="🇧🇷", layout="centered")
