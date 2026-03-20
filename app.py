@@ -63,8 +63,21 @@ st.markdown("""
 # --- CONNEXION BDD CLOUD (Google Sheets) ---
 # Dans Streamlit Cloud, tu devras configurer l'URL dans les "Secrets"
 conn = st.connection("gsheets", type=GSheetsConnection)
+
 VERBS_DATASET_PATH = Path("verbs_dataset.json")
 SHEET_NAME = "Feuille1"
+
+st.write("Spreadsheet secret :", st.secrets["connections"]["gsheets"]["spreadsheet"])
+
+try:
+    test_df = conn.read(worksheet=SHEET_NAME, ttl=0)
+    st.success("Connexion Google Sheets OK")
+    st.write("Colonnes :", list(test_df.columns))
+    st.write(test_df.head())
+except Exception as e:
+    st.error(f"Connexion Google Sheets indisponible : {repr(e)}")
+    
+
 
 
 def normalize(text):
