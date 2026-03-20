@@ -192,7 +192,7 @@ def verify_translation_pair(fr_word, pt_word):
     pt_score = answer_similarity(expected_pt, pt_word)
 
     return {
-        "ok": fr_score >= 95 or pt_score >= 95,
+        "ok": fr_score >= 100 or pt_score >= 100,
         "expected_pt": expected_pt,
         "expected_fr": expected_fr,
         "fr_score": fr_score,
@@ -247,8 +247,8 @@ with st.sidebar.expander("Ajouter du vocabulaire"):
     if pending_word and pending_verification:
         st.warning(
             "La traduction saisie semble incohérente. "
-            f"**{new_fr}** ≠ **{new_pt}** selon la vérification automatique."
-            f"Suggestion : **{new_pt}** (PT) ≈ **{pending_verification['expected_fr']}** (FR)"
+            f"**{pending_word['fr']}** ≠ **{pending_word['pt']}** selon la vérification automatique. "
+            f"Suggestion : **{pending_verification['expected_pt']}** (PT) ≈ **{pending_verification['expected_fr']}** (FR)"
         )
         st.write("Es-tu sûr de cette traduction ?")
         confirm_col, cancel_col = st.columns(2)
@@ -256,7 +256,7 @@ with st.sidebar.expander("Ajouter du vocabulaire"):
             try:
                 save_word_to_sheet(pending_word)
                 st.session_state.base_db = deduplicate_entries([*st.session_state.base_db, pending_word])
-                st.success("**{new_fr}** ajouté malgré l'avertissement.")
+                st.success(f"**{pending_word['fr']}** ajouté malgré l'avertissement.")
             except Exception as exc:
                 st.error(f"Impossible d'ajouter le mot : {exc}")
             finally:
