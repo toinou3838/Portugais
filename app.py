@@ -64,6 +64,7 @@ st.markdown("""
 # Dans Streamlit Cloud, tu devras configurer l'URL dans les "Secrets"
 conn = st.connection("gsheets", type=GSheetsConnection)
 VERBS_DATASET_PATH = Path("verbs_dataset.json")
+SHEET_NAME = "Feuille 1"
 
 
 def normalize(text):
@@ -143,11 +144,10 @@ def load_verbs_dataset():
 
 def read_sheet_entries():
     try:
-        test_df = conn.read(worksheet="Feuille 1", ttl="0")
-        st.success("Connexion Google Sheets OK")
-        st.write(test_df.head())
+        df = conn.read(worksheet=SHEET_NAME, ttl="10m")
     except Exception as e:
-        st.error(f"Connexion Google Sheets FAILED : {e}")
+        st.warning(f"Connexion Google Sheets indisponible : {e}")
+        return []
 
     if df is None or df.empty:
         return []
@@ -163,8 +163,7 @@ def load_base_db():
 
 def save_word_to_sheet(entry):
     try:
-        current_df = conn.read(worksheet="Feuille 1")
-        st.write("DEBUG current_df:", current_df)
+        current_df = conn.read(worksheet=SHEET_NAME)
 
         new_row_df = pd.DataFrame([entry])
 
@@ -173,12 +172,10 @@ def save_word_to_sheet(entry):
         else:
             updated_df = pd.concat([current_df, new_row_df], ignore_index=True)
 
-        conn.update(worksheet="Feuille 1", data=updated_df)
-
-        st.success("Écriture réussie Google Sheets")
+        conn.update(worksheet=SHEET_NAME, data=updated_df)
 
     except Exception as e:
-        st.error(f"Erreur écriture : {e}")
+        raise RuntimeError(f"Erreur écriture Google Sheets : {e}") from e
 
 
 def verify_translation_pair(fr_word, pt_word):
