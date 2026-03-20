@@ -235,8 +235,7 @@ with st.sidebar.expander("Ajouter du vocabulaire"):
                         st.session_state.base_db = deduplicate_entries([*st.session_state.base_db, new_row])
                         if verification:
                             st.success(
-                                f"**{new_fr}** ajouté !"
-                                f"Vérification OK (**{new_pt}**≈**{verification['expected_pt']}**)."
+                                f"**{new_fr}** = **{new_pt}** ajouté !"
                             )
                         else:
                             st.success(f"**{new_fr}** ajouté !")
