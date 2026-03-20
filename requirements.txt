@@ -3,6 +3,5 @@ wordfreq
 deep-translator
 streamlit>=1.32
 rapidfuzz>=3.0
-streamlit-gsheets
-
+st-gsheets-connection
 pandas
