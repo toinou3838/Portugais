@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 import pandas as pd
+import streamlit.components.v1 as components
 from deep_translator import GoogleTranslator
 from rapidfuzz import fuzz
 from streamlit_gsheets import GSheetsConnection
@@ -34,10 +35,13 @@ st.markdown("""
         [data-testid="stExpander"] button {
             width: 100% !important;
             min-width: 0 !important;
-            height: 34px !important;
+            min-height: 34px !important;
+            height: auto !important;
             padding: 0.1rem !important;
             border-radius: 6px !important;
             font-size: 0.78rem !important;
+            white-space: normal !important;
+            line-height: 1.25 !important;
         }
 
         .quiz-progress {
@@ -199,6 +203,51 @@ def verify_translation_pair(fr_word, pt_word):
         "pt_score": pt_score,
     }
 
+
+def render_add_word_keyboard_shortcuts():
+    components.html(
+        """
+        <script>
+        const setup = () => {
+          const doc = window.parent.document;
+          const frInput = doc.querySelector('input[aria-label="Mot en Français"]');
+          const ptInput = doc.querySelector('input[aria-label="Mot en Portugais"]');
+          const submitButton = [...doc.querySelectorAll('button')].find(
+            (button) => button.textContent && button.textContent.includes('Ajouter à la BDD')
+          );
+
+          if (!frInput || !ptInput || !submitButton) {
+            window.setTimeout(setup, 250);
+            return;
+          }
+
+          if (!frInput.dataset.enterShortcutBound) {
+            frInput.addEventListener('keydown', (event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                ptInput.focus();
+              }
+            });
+            frInput.dataset.enterShortcutBound = '1';
+          }
+
+          if (!ptInput.dataset.enterShortcutBound) {
+            ptInput.addEventListener('keydown', (event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                submitButton.click();
+              }
+            });
+            ptInput.dataset.enterShortcutBound = '1';
+          }
+        };
+
+        setup();
+        </script>
+        """,
+        height=0,
+    )
+
 if 'base_db' not in st.session_state:
     st.session_state.base_db = load_base_db()
 
@@ -206,8 +255,8 @@ if 'base_db' not in st.session_state:
 with st.sidebar.expander("Ajouter du vocabulaire"):
     with st.container():
         with st.form("add_word_form", clear_on_submit=True):
-            new_fr = st.text_input("Mot en Français")
-            new_pt = st.text_input("Mot en Portugais")
+            new_fr = st.text_input("Mot en Français", key="new_fr_input")
+            new_pt = st.text_input("Mot en Portugais", key="new_pt_input")
             submit_new = st.form_submit_button("   Ajouter à la BDD   ")
             
             if submit_new and new_fr and new_pt:
@@ -243,6 +292,8 @@ with st.sidebar.expander("Ajouter du vocabulaire"):
                         except Exception as exc:
                             st.error(f"Impossible d'ajouter le mot : {exc}")
 
+        render_add_word_keyboard_shortcuts()
+
         pending_word = st.session_state.get("pending_word")
         pending_verification = st.session_state.get("pending_verification")
         if pending_word and pending_verification:
@@ -252,7 +303,7 @@ with st.sidebar.expander("Ajouter du vocabulaire"):
                 f"Suggestion : **{pending_word['pt']}** (PT) ≈ **{pending_verification['expected_fr']}** (FR)"
             )
             st.write("Es-tu sûr de cette traduction ?")
-            confirm_col, cancel_col = st.columns(2)
+            confirm_col, cancel_col = st.columns([1, 1.8])
             if confirm_col.button("Oui", key="confirm_pending_word", use_container_width=True):
                 try:
                     save_word_to_sheet(pending_word)
