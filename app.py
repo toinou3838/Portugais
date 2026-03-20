@@ -255,16 +255,6 @@ if 'base_db' not in st.session_state:
 with st.sidebar.expander("Ajouter du vocabulaire"):
     with st.container():
         admin_feedback = st.session_state.get("admin_feedback")
-        if admin_feedback:
-            feedback_type, feedback_message = admin_feedback
-            if feedback_type == "success":
-                st.success(feedback_message)
-            elif feedback_type == "warning":
-                st.warning(feedback_message)
-            else:
-                st.error(feedback_message)
-            st.session_state.admin_feedback = None
-
         with st.form("add_word_form", clear_on_submit=True):
             new_fr = st.text_input("Mot en Français", key="new_fr_input")
             new_pt = st.text_input("Mot en Portugais", key="new_pt_input")
@@ -304,6 +294,16 @@ with st.sidebar.expander("Ajouter du vocabulaire"):
                             st.rerun()
                         except Exception as exc:
                             st.error(f"Impossible d'ajouter le mot : {exc}")
+
+        if admin_feedback:
+            feedback_type, feedback_message = admin_feedback
+            if feedback_type == "success":
+                st.success(feedback_message)
+            elif feedback_type == "warning":
+                st.warning(feedback_message)
+            else:
+                st.error(feedback_message)
+            st.session_state.admin_feedback = None
 
         render_add_word_keyboard_shortcuts()
 
