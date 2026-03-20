@@ -207,7 +207,7 @@ with st.sidebar.expander("Ajouter du vocabulaire"):
     with st.form("add_word_form", clear_on_submit=True):
         new_fr = st.text_input("Mot en Français")
         new_pt = st.text_input("Mot en Portugais")
-        submit_new = st.form_submit_button("Ajouter à la base globale")
+        submit_new = st.form_submit_button("Ajouter à la base de données")
         
         if submit_new and new_fr and new_pt:
             new_row = {"fr": new_fr.strip(), "pt": new_pt.strip(), "dir": random.randint(0, 1), "source": "vocab"}
@@ -235,31 +235,31 @@ with st.sidebar.expander("Ajouter du vocabulaire"):
                         st.session_state.base_db = deduplicate_entries([*st.session_state.base_db, new_row])
                         if verification:
                             st.success(
-                                "Mot ajouté dans Google Sheets. "
-                                f"Vérification OK (FR→PT : {verification['expected_pt']})."
+                                f"**{new_fr}** ajouté !"
+                                f"Vérification OK (**{new_pt}**≈**{verification['expected_pt']}**)."
                             )
                         else:
-                            st.success("Mot ajouté dans Google Sheets.")
+                            st.success(f"**{new_fr}** ajouté !")
                     except Exception as exc:
-                        st.error(f"Impossible d'ajouter le mot dans Google Sheets : {exc}")
+                        st.error(f"Impossible d'ajouter le mot : {exc}")
 
     pending_word = st.session_state.get("pending_word")
     pending_verification = st.session_state.get("pending_verification")
     if pending_word and pending_verification:
         st.warning(
             "La traduction saisie semble incohérente. "
-            f"FR→PT suggéré : {pending_verification['expected_pt']} | "
-            f"PT→FR suggéré : {pending_verification['expected_fr']}"
+            f"**{new_fr}** ≠ **{new_pt}** selon la vérification automatique."
+            f"Suggestion : **{new_pt}** ≈ **{pending_verification['expected_fr']}**"
         )
-        st.write("Es-tu sûr ?")
+        st.write("Es-tu sûr de cette traduction ?")
         confirm_col, cancel_col = st.columns(2)
         if confirm_col.button("Oui", key="confirm_pending_word", use_container_width=True):
             try:
                 save_word_to_sheet(pending_word)
                 st.session_state.base_db = deduplicate_entries([*st.session_state.base_db, pending_word])
-                st.success("Mot ajouté dans Google Sheets malgré l'avertissement.")
+                st.success("**{new_fr}** ajouté malgré l'avertissement.")
             except Exception as exc:
-                st.error(f"Impossible d'ajouter le mot dans Google Sheets : {exc}")
+                st.error(f"Impossible d'ajouter le mot : {exc}")
             finally:
                 st.session_state.pending_word = None
                 st.session_state.pending_verification = None
