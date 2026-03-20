@@ -192,7 +192,7 @@ def verify_translation_pair(fr_word, pt_word):
     pt_score = answer_similarity(expected_pt, pt_word)
 
     return {
-        "ok": fr_score >= 85 or pt_score >= 85,
+        "ok": fr_score >= 95 or pt_score >= 95,
         "expected_pt": expected_pt,
         "expected_fr": expected_fr,
         "fr_score": fr_score,
