@@ -254,6 +254,17 @@ if 'base_db' not in st.session_state:
 # --- SECTION ADMINISTRATION (Ajouter un mot) ---
 with st.sidebar.expander("Ajouter du vocabulaire"):
     with st.container():
+        admin_feedback = st.session_state.get("admin_feedback")
+        if admin_feedback:
+            feedback_type, feedback_message = admin_feedback
+            if feedback_type == "success":
+                st.success(feedback_message)
+            elif feedback_type == "warning":
+                st.warning(feedback_message)
+            else:
+                st.error(feedback_message)
+            st.session_state.admin_feedback = None
+
         with st.form("add_word_form", clear_on_submit=True):
             new_fr = st.text_input("Mot en Français", key="new_fr_input")
             new_pt = st.text_input("Mot en Portugais", key="new_pt_input")
@@ -284,11 +295,13 @@ with st.sidebar.expander("Ajouter du vocabulaire"):
                             save_word_to_sheet(new_row)
                             st.session_state.base_db = deduplicate_entries([*st.session_state.base_db, new_row])
                             if verification:
-                                st.success(
-                                    f"**{new_fr}** = **{new_pt}** ajouté !"
+                                st.session_state.admin_feedback = (
+                                    "success",
+                                    f"**{new_fr}** = **{new_pt}** ajouté !",
                                 )
                             else:
-                                st.success(f"**{new_fr}** ajouté !")
+                                st.session_state.admin_feedback = ("success", f"**{new_fr}** ajouté !")
+                            st.rerun()
                         except Exception as exc:
                             st.error(f"Impossible d'ajouter le mot : {exc}")
 
@@ -308,12 +321,16 @@ with st.sidebar.expander("Ajouter du vocabulaire"):
                 try:
                     save_word_to_sheet(pending_word)
                     st.session_state.base_db = deduplicate_entries([*st.session_state.base_db, pending_word])
-                    st.success(f"**{pending_word['fr']}** ajouté malgré l'avertissement.")
+                    st.session_state.admin_feedback = (
+                        "success",
+                        f"**{pending_word['fr']}** = **{pending_word['pt']}** ajouté malgré l'avertissement.",
+                    )
                 except Exception as exc:
                     st.error(f"Impossible d'ajouter le mot : {exc}")
                 finally:
                     st.session_state.pending_word = None
                     st.session_state.pending_verification = None
+                st.rerun()
             if cancel_col.button("Non, ajouter la recommandation", key="cancel_pending_word", use_container_width=True):
                 recommended_word = {
                     "fr": pending_verification["expected_fr"],
@@ -324,15 +341,16 @@ with st.sidebar.expander("Ajouter du vocabulaire"):
                 try:
                     save_word_to_sheet(recommended_word)
                     st.session_state.base_db = deduplicate_entries([*st.session_state.base_db, recommended_word])
-                    st.success(
-                        f"Traduction recommandée ajoutée : "
-                        f"**{recommended_word['fr']}** = **{recommended_word['pt']}**"
+                    st.session_state.admin_feedback = (
+                        "success",
+                        f"**{recommended_word['fr']}** = **{recommended_word['pt']}** ajouté malgré l'avertissement.",
                     )
                 except Exception as exc:
                     st.error(f"Impossible d'ajouter la traduction recommandée : {exc}")
                 finally:
                     st.session_state.pending_word = None
                     st.session_state.pending_verification = None
+                st.rerun()
 
 # --- SESSION STATE ---
 if 'index' not in st.session_state:
@@ -347,6 +365,10 @@ if 'index' not in st.session_state:
     st.session_state.input_field = ""
     st.session_state.pending_word = None
     st.session_state.pending_verification = None
+    st.session_state.admin_feedback = None
+
+if 'admin_feedback' not in st.session_state:
+    st.session_state.admin_feedback = None
 
 
 def is_correct_answer(user_input, target):
