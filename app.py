@@ -248,7 +248,7 @@ with st.sidebar.expander("Ajouter du vocabulaire"):
         st.warning(
             "La traduction saisie semble incohérente. "
             f"**{pending_word['fr']}** ≠ **{pending_word['pt']}** selon la vérification automatique. "
-            f"Suggestion : **{pending_word['pt']}** (PT) ≈ **{pending_verification['pending_fr']}** (FR)"
+            f"Suggestion : **{pending_word['pt']}** (PT) ≈ **{pending_verification['expected_fr']}** (FR)"
         )
         st.write("Es-tu sûr de cette traduction ?")
         confirm_col, cancel_col = st.columns(2)
