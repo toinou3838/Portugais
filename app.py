@@ -207,7 +207,7 @@ with st.sidebar.expander("Ajouter du vocabulaire"):
     with st.form("add_word_form", clear_on_submit=True):
         new_fr = st.text_input("Mot en Français")
         new_pt = st.text_input("Mot en Portugais")
-        submit_new = st.form_submit_button("Ajouter à la BDD")
+        submit_new = st.form_submit_button("   Ajouter à la BDD   ")
         
         if submit_new and new_fr and new_pt:
             new_row = {"fr": new_fr.strip(), "pt": new_pt.strip(), "dir": random.randint(0, 1), "source": "vocab"}
