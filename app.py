@@ -191,7 +191,7 @@ if 'base_db' not in st.session_state:
     st.session_state.base_db = load_base_db()
 
 # --- SECTION ADMINISTRATION (Ajouter un mot) ---
-with st.sidebar.expander("➕ Ajouter du vocabulaire"):
+with st.sidebar.expander("Ajouter du vocabulaire"):
     with st.form("add_word_form", clear_on_submit=True):
         new_fr = st.text_input("Mot en Français")
         new_pt = st.text_input("Mot en Portugais")
