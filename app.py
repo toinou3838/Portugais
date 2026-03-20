@@ -69,6 +69,7 @@ st.markdown("""
 conn = st.connection("gsheets", type=GSheetsConnection)
 
 VERBS_DATASET_PATH = Path("verbs_dataset.json")
+OFFLINE_TEMPLATE_PATH = Path("offline_quiz_template.html")
 SHEET_NAME = "Feuille1"
 
 
@@ -246,6 +247,43 @@ def render_add_word_keyboard_shortcuts():
         </script>
         """,
         height=0,
+    )
+
+
+def build_offline_quiz_html(quiz_entries):
+    if not OFFLINE_TEMPLATE_PATH.exists():
+        raise FileNotFoundError(f"Template introuvable : {OFFLINE_TEMPLATE_PATH}")
+
+    quiz_payload = [
+        {
+            "fr": item["fr"],
+            "pt": item["pt"],
+            "dir": int(item["dir"]),
+            "source": item.get("source", "vocab"),
+        }
+        for item in quiz_entries
+    ]
+
+    template = OFFLINE_TEMPLATE_PATH.read_text(encoding="utf-8")
+    return (
+        template
+        .replace("__QUIZ_DATA_JSON__", json.dumps(quiz_payload, ensure_ascii=False))
+        .replace("__QUIZ_TITLE__", "O Mestre do Portugues - Quiz hors ligne")
+    )
+
+
+def render_offline_export_button():
+    if not st.session_state.db:
+        return
+
+    offline_html = build_offline_quiz_html(st.session_state.db)
+    st.download_button(
+        "Télécharger le quiz hors ligne",
+        data=offline_html,
+        file_name="quiz_portugais_offline.html",
+        mime="text/html",
+        use_container_width=True,
+        help="Télécharge une page HTML autonome du quiz courant. Elle fonctionne ensuite sans réseau.",
     )
 
 if 'base_db' not in st.session_state:
@@ -554,6 +592,7 @@ answered_count = total_q - unanswered_count
 
 # --- RÉCAPITULATIF COMPACT ---
 st.sidebar.markdown("**État de progression**")
+render_offline_export_button()
 cols_per_row = 2
 for row_start in range(0, total_q, cols_per_row):
     cols = st.sidebar.columns(cols_per_row)
