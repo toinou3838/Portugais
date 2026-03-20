@@ -207,7 +207,7 @@ with st.sidebar.expander("Ajouter du vocabulaire"):
     with st.form("add_word_form", clear_on_submit=True):
         new_fr = st.text_input("Mot en Français")
         new_pt = st.text_input("Mot en Portugais")
-        submit_new = st.form_submit_button("Ajouter à la base de données")
+        submit_new = st.form_submit_button("Ajouter à la BDD")
         
         if submit_new and new_fr and new_pt:
             new_row = {"fr": new_fr.strip(), "pt": new_pt.strip(), "dir": random.randint(0, 1), "source": "vocab"}
@@ -249,7 +249,7 @@ with st.sidebar.expander("Ajouter du vocabulaire"):
         st.warning(
             "La traduction saisie semble incohérente. "
             f"**{new_fr}** ≠ **{new_pt}** selon la vérification automatique."
-            f"Suggestion : **{new_pt}** ≈ **{pending_verification['expected_fr']}**"
+            f"Suggestion : **{new_pt}** (PT) ≈ **{pending_verification['expected_fr']}** (FR)"
         )
         st.write("Es-tu sûr de cette traduction ?")
         confirm_col, cancel_col = st.columns(2)
