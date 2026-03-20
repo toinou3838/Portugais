@@ -64,7 +64,7 @@ st.markdown("""
 # Dans Streamlit Cloud, tu devras configurer l'URL dans les "Secrets"
 conn = st.connection("gsheets", type=GSheetsConnection)
 VERBS_DATASET_PATH = Path("verbs_dataset.json")
-SHEET_NAME = "Feuille 1"
+SHEET_NAME = "Feuille1"
 
 
 def normalize(text):
