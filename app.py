@@ -263,7 +263,7 @@ with st.sidebar.expander("Ajouter du vocabulaire"):
                 finally:
                     st.session_state.pending_word = None
                     st.session_state.pending_verification = None
-            if cancel_col.button("Non", key="cancel_pending_word", use_container_width=True):
+            if cancel_col.button("Non, ajouter la recommandation", key="cancel_pending_word", use_container_width=True):
                 recommended_word = {
                     "fr": pending_verification["expected_fr"],
                     "pt": pending_word["pt"],
