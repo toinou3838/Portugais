@@ -68,6 +68,7 @@ VERBS_DATASET_PATH = Path("verbs_dataset.json")
 SHEET_NAME = "Feuille1"
 
 st.write("Spreadsheet secret :", st.secrets["connections"]["gsheets"]["spreadsheet"])
+st.write("Service account email :", st.secrets["connections"]["gsheets"]["client_email"])
 
 try:
     test_df = conn.read(worksheet=SHEET_NAME, ttl=0)
