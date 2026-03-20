@@ -112,7 +112,8 @@ def sanitize_entry(entry):
     pt = str(entry.get("pt", "")).strip()
     if not fr or not pt:
         return None
-    return {"fr": fr, "pt": pt, "dir": sanitize_dir(entry.get("dir"))}
+    source = str(entry.get("source", "vocab")).strip() or "vocab"
+    return {"fr": fr, "pt": pt, "dir": sanitize_dir(entry.get("dir")), "source": source}
 
 
 def deduplicate_entries(entries):
@@ -140,7 +141,7 @@ def load_verbs_dataset():
 
     with VERBS_DATASET_PATH.open("r", encoding="utf-8") as f:
         data = json.load(f)
-    return deduplicate_entries(data)
+    return deduplicate_entries([{**item, "source": "conjugaison"} for item in data])
 
 
 def read_sheet_entries():
@@ -153,7 +154,7 @@ def read_sheet_entries():
     if df is None or df.empty:
         return []
 
-    return deduplicate_entries(df.to_dict("records"))
+    return deduplicate_entries([{**item, "source": "vocab"} for item in df.to_dict("records")])
 
 
 def load_base_db():
@@ -166,7 +167,8 @@ def save_word_to_sheet(entry):
     try:
         current_df = conn.read(worksheet=SHEET_NAME)
 
-        new_row_df = pd.DataFrame([entry])
+        sheet_entry = {"fr": entry["fr"], "pt": entry["pt"], "dir": entry["dir"]}
+        new_row_df = pd.DataFrame([sheet_entry])
 
         if current_df is None or current_df.empty:
             updated_df = new_row_df
@@ -205,11 +207,10 @@ with st.sidebar.expander("Ajouter du vocabulaire"):
     with st.form("add_word_form", clear_on_submit=True):
         new_fr = st.text_input("Mot en Français")
         new_pt = st.text_input("Mot en Portugais")
-        verify_before_save = st.checkbox("Vérifier la traduction automatiquement", value=True)
         submit_new = st.form_submit_button("Ajouter à la base globale")
         
         if submit_new and new_fr and new_pt:
-            new_row = {"fr": new_fr.strip(), "pt": new_pt.strip(), "dir": random.randint(0, 1)}
+            new_row = {"fr": new_fr.strip(), "pt": new_pt.strip(), "dir": random.randint(0, 1), "source": "vocab"}
 
             existing_pairs = {
                 (normalize_tokens(item["fr"]), normalize_tokens(item["pt"]))
@@ -219,19 +220,15 @@ with st.sidebar.expander("Ajouter du vocabulaire"):
             if new_pair in existing_pairs:
                 st.warning("Ce mot existe déjà dans la base chargée.")
             else:
-                verification = None
-                if verify_before_save:
-                    try:
-                        verification = verify_translation_pair(new_row["fr"], new_row["pt"])
-                    except Exception as exc:
-                        st.warning(f"Vérification indisponible pour le moment : {exc}")
+                try:
+                    verification = verify_translation_pair(new_row["fr"], new_row["pt"])
+                except Exception as exc:
+                    verification = None
+                    st.warning(f"Vérification indisponible pour le moment : {exc}")
 
                 if verification and not verification["ok"]:
-                    st.error(
-                        "La traduction saisie semble incohérente. "
-                        f"FR→PT suggéré : {verification['expected_pt']} | "
-                        f"PT→FR suggéré : {verification['expected_fr']}"
-                    )
+                    st.session_state.pending_word = new_row
+                    st.session_state.pending_verification = verification
                 else:
                     try:
                         save_word_to_sheet(new_row)
@@ -246,6 +243,31 @@ with st.sidebar.expander("Ajouter du vocabulaire"):
                     except Exception as exc:
                         st.error(f"Impossible d'ajouter le mot dans Google Sheets : {exc}")
 
+    pending_word = st.session_state.get("pending_word")
+    pending_verification = st.session_state.get("pending_verification")
+    if pending_word and pending_verification:
+        st.warning(
+            "La traduction saisie semble incohérente. "
+            f"FR→PT suggéré : {pending_verification['expected_pt']} | "
+            f"PT→FR suggéré : {pending_verification['expected_fr']}"
+        )
+        st.write("Es-tu sûr ?")
+        confirm_col, cancel_col = st.columns(2)
+        if confirm_col.button("Oui", key="confirm_pending_word", use_container_width=True):
+            try:
+                save_word_to_sheet(pending_word)
+                st.session_state.base_db = deduplicate_entries([*st.session_state.base_db, pending_word])
+                st.success("Mot ajouté dans Google Sheets malgré l'avertissement.")
+            except Exception as exc:
+                st.error(f"Impossible d'ajouter le mot dans Google Sheets : {exc}")
+            finally:
+                st.session_state.pending_word = None
+                st.session_state.pending_verification = None
+        if cancel_col.button("Non", key="cancel_pending_word", use_container_width=True):
+            st.session_state.pending_word = None
+            st.session_state.pending_verification = None
+            st.info("Ajout annulé.")
+
 # --- SESSION STATE ---
 if 'index' not in st.session_state:
     st.session_state.index = 0
@@ -254,8 +276,11 @@ if 'index' not in st.session_state:
     st.session_state.quiz_finished = False
     st.session_state.quiz_started = False
     st.session_state.selected_n = min(20, len(st.session_state.base_db))
+    st.session_state.selected_conjugation_pct = 10
     st.session_state.db = []
     st.session_state.input_field = ""
+    st.session_state.pending_word = None
+    st.session_state.pending_verification = None
 
 
 def is_correct_answer(user_input, target):
@@ -298,9 +323,37 @@ def progress_label(status, idx, current_idx):
         prefix = "👀"
     return f"{prefix} {idx + 1}"
 
-def build_quiz_sample(sample_size):
-    sample_size = min(sample_size, len(st.session_state.base_db))
-    return [item.copy() for item in random.sample(st.session_state.base_db, sample_size)]
+def build_quiz_sample(sample_size, conjugation_pct):
+    conjugation_entries = [item for item in st.session_state.base_db if item.get("source") == "conjugaison"]
+    vocab_entries = [item for item in st.session_state.base_db if item.get("source") != "conjugaison"]
+
+    total_available = len(conjugation_entries) + len(vocab_entries)
+    sample_size = min(sample_size, total_available)
+    if sample_size <= 0:
+        return []
+
+    target_conjugation = round(sample_size * (conjugation_pct / 100))
+    target_conjugation = min(target_conjugation, len(conjugation_entries))
+    target_vocab = sample_size - target_conjugation
+
+    if target_vocab > len(vocab_entries):
+        missing_vocab = target_vocab - len(vocab_entries)
+        target_vocab = len(vocab_entries)
+        target_conjugation = min(len(conjugation_entries), target_conjugation + missing_vocab)
+
+    if target_conjugation > len(conjugation_entries):
+        missing_conjugation = target_conjugation - len(conjugation_entries)
+        target_conjugation = len(conjugation_entries)
+        target_vocab = min(len(vocab_entries), target_vocab + missing_conjugation)
+
+    sampled_entries = []
+    if target_conjugation > 0:
+        sampled_entries.extend(random.sample(conjugation_entries, target_conjugation))
+    if target_vocab > 0:
+        sampled_entries.extend(random.sample(vocab_entries, target_vocab))
+
+    random.shuffle(sampled_entries)
+    return [item.copy() for item in sampled_entries]
 
 def reset_quiz_state():
     st.session_state.index = 0
@@ -308,15 +361,21 @@ def reset_quiz_state():
     st.session_state.last_feedback = None
     st.session_state.quiz_finished = False
 
-def start_new_quiz(sample_size):
+def start_new_quiz(sample_size, conjugation_pct):
     st.session_state.selected_n = min(sample_size, len(st.session_state.base_db))
-    st.session_state.db = build_quiz_sample(st.session_state.selected_n)
+    st.session_state.selected_conjugation_pct = max(0, min(100, int(conjugation_pct)))
+    st.session_state.db = build_quiz_sample(st.session_state.selected_n, st.session_state.selected_conjugation_pct)
     st.session_state.quiz_started = True
     reset_quiz_state()
 
 def restart_inverted_quiz():
     st.session_state.db = [
-        {"fr": item["fr"], "pt": item["pt"], "dir": 1 if item["dir"] == 0 else 0}
+        {
+            "fr": item["fr"],
+            "pt": item["pt"],
+            "dir": 1 if item["dir"] == 0 else 0,
+            "source": item.get("source", "vocab"),
+        }
         for item in st.session_state.db
     ]
     st.session_state.quiz_started = True
@@ -387,8 +446,15 @@ if not st.session_state.quiz_started:
         value=st.session_state.selected_n,
         step=1,
     )
+    selected_conjugation_pct = st.number_input(
+        "Pourcentage de conjugaison",
+        min_value=0,
+        max_value=100,
+        value=st.session_state.selected_conjugation_pct,
+        step=1,
+    )
     if st.button("Commencer le quiz"):
-        start_new_quiz(int(selected_n))
+        start_new_quiz(int(selected_n), int(selected_conjugation_pct))
         st.rerun()
     st.stop()
 
