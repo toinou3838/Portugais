@@ -204,7 +204,7 @@ if 'base_db' not in st.session_state:
 
 # --- SECTION ADMINISTRATION (Ajouter un mot) ---
 with st.sidebar.expander("Ajouter du vocabulaire"):
-    with st.container(border=True):
+    with st.container():
         with st.form("add_word_form", clear_on_submit=True):
             new_fr = st.text_input("Mot en Français")
             new_pt = st.text_input("Mot en Portugais")
@@ -264,9 +264,24 @@ with st.sidebar.expander("Ajouter du vocabulaire"):
                     st.session_state.pending_word = None
                     st.session_state.pending_verification = None
             if cancel_col.button("Non", key="cancel_pending_word", use_container_width=True):
-                st.session_state.pending_word = None
-                st.session_state.pending_verification = None
-                st.info("Ajout annulé.")
+                recommended_word = {
+                    "fr": pending_verification["expected_fr"],
+                    "pt": pending_word["pt"],
+                    "dir": random.randint(0, 1),
+                    "source": "vocab",
+                }
+                try:
+                    save_word_to_sheet(recommended_word)
+                    st.session_state.base_db = deduplicate_entries([*st.session_state.base_db, recommended_word])
+                    st.success(
+                        f"Traduction recommandée ajoutée : "
+                        f"**{recommended_word['fr']}** = **{recommended_word['pt']}**"
+                    )
+                except Exception as exc:
+                    st.error(f"Impossible d'ajouter la traduction recommandée : {exc}")
+                finally:
+                    st.session_state.pending_word = None
+                    st.session_state.pending_verification = None
 
 # --- SESSION STATE ---
 if 'index' not in st.session_state:
