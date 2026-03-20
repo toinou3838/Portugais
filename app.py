@@ -143,9 +143,11 @@ def load_verbs_dataset():
 
 def read_sheet_entries():
     try:
-        df = conn.read(worksheet="Feuille 1", ttl="10m")
-    except Exception:
-        return []
+        test_df = conn.read(worksheet="Feuille 1", ttl="0")
+        st.success("Connexion Google Sheets OK")
+        st.write(test_df.head())
+    except Exception as e:
+        st.error(f"Connexion Google Sheets FAILED : {e}")
 
     if df is None or df.empty:
         return []
@@ -160,13 +162,23 @@ def load_base_db():
 
 
 def save_word_to_sheet(entry):
-    current_df = conn.read(worksheet="Feuille1")
-    new_row_df = pd.DataFrame([entry])
-    if current_df is None or current_df.empty:
-        updated_df = new_row_df
-    else:
-        updated_df = pd.concat([current_df, new_row_df], ignore_index=True)
-    conn.update(worksheet="Feuille1", data=updated_df)
+    try:
+        current_df = conn.read(worksheet="Feuille 1")
+        st.write("DEBUG current_df:", current_df)
+
+        new_row_df = pd.DataFrame([entry])
+
+        if current_df is None or current_df.empty:
+            updated_df = new_row_df
+        else:
+            updated_df = pd.concat([current_df, new_row_df], ignore_index=True)
+
+        conn.update(worksheet="Feuille 1", data=updated_df)
+
+        st.success("Écriture réussie Google Sheets")
+
+    except Exception as e:
+        st.error(f"Erreur écriture : {e}")
 
 
 def verify_translation_pair(fr_word, pt_word):
