@@ -143,7 +143,7 @@ def load_verbs_dataset():
 
 def read_sheet_entries():
     try:
-        df = conn.read(worksheet="Feuille1", ttl="10m")
+        df = conn.read(worksheet="Feuille 1", ttl="10m")
     except Exception:
         return []
 
