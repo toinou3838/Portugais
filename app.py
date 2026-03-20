@@ -204,68 +204,69 @@ if 'base_db' not in st.session_state:
 
 # --- SECTION ADMINISTRATION (Ajouter un mot) ---
 with st.sidebar.expander("Ajouter du vocabulaire"):
-    with st.form("add_word_form", clear_on_submit=True):
-        new_fr = st.text_input("Mot en Français")
-        new_pt = st.text_input("Mot en Portugais")
-        submit_new = st.form_submit_button("   Ajouter à la BDD   ")
-        
-        if submit_new and new_fr and new_pt:
-            new_row = {"fr": new_fr.strip(), "pt": new_pt.strip(), "dir": random.randint(0, 1), "source": "vocab"}
+    with st.container(border=True):
+        with st.form("add_word_form", clear_on_submit=True):
+            new_fr = st.text_input("Mot en Français")
+            new_pt = st.text_input("Mot en Portugais")
+            submit_new = st.form_submit_button("   Ajouter à la BDD   ")
+            
+            if submit_new and new_fr and new_pt:
+                new_row = {"fr": new_fr.strip(), "pt": new_pt.strip(), "dir": random.randint(0, 1), "source": "vocab"}
 
-            existing_pairs = {
-                (normalize_tokens(item["fr"]), normalize_tokens(item["pt"]))
-                for item in st.session_state.base_db
-            }
-            new_pair = (normalize_tokens(new_row["fr"]), normalize_tokens(new_row["pt"]))
-            if new_pair in existing_pairs:
-                st.warning("Ce mot existe déjà dans la base chargée.")
-            else:
-                try:
-                    verification = verify_translation_pair(new_row["fr"], new_row["pt"])
-                except Exception as exc:
-                    verification = None
-                    st.warning(f"Vérification indisponible pour le moment : {exc}")
-
-                if verification and not verification["ok"]:
-                    st.session_state.pending_word = new_row
-                    st.session_state.pending_verification = verification
+                existing_pairs = {
+                    (normalize_tokens(item["fr"]), normalize_tokens(item["pt"]))
+                    for item in st.session_state.base_db
+                }
+                new_pair = (normalize_tokens(new_row["fr"]), normalize_tokens(new_row["pt"]))
+                if new_pair in existing_pairs:
+                    st.warning("Ce mot existe déjà dans la base chargée.")
                 else:
                     try:
-                        save_word_to_sheet(new_row)
-                        st.session_state.base_db = deduplicate_entries([*st.session_state.base_db, new_row])
-                        if verification:
-                            st.success(
-                                f"**{new_fr}** = **{new_pt}** ajouté !"
-                            )
-                        else:
-                            st.success(f"**{new_fr}** ajouté !")
+                        verification = verify_translation_pair(new_row["fr"], new_row["pt"])
                     except Exception as exc:
-                        st.error(f"Impossible d'ajouter le mot : {exc}")
+                        verification = None
+                        st.warning(f"Vérification indisponible pour le moment : {exc}")
 
-    pending_word = st.session_state.get("pending_word")
-    pending_verification = st.session_state.get("pending_verification")
-    if pending_word and pending_verification:
-        st.warning(
-            "La traduction saisie semble incohérente. "
-            f"**{pending_word['fr']}** ≠ **{pending_word['pt']}** selon la vérification automatique. "
-            f"Suggestion : **{pending_word['pt']}** (PT) ≈ **{pending_verification['expected_fr']}** (FR)"
-        )
-        st.write("Es-tu sûr de cette traduction ?")
-        confirm_col, cancel_col = st.columns(2)
-        if confirm_col.button("Oui", key="confirm_pending_word", use_container_width=True):
-            try:
-                save_word_to_sheet(pending_word)
-                st.session_state.base_db = deduplicate_entries([*st.session_state.base_db, pending_word])
-                st.success(f"**{pending_word['fr']}** ajouté malgré l'avertissement.")
-            except Exception as exc:
-                st.error(f"Impossible d'ajouter le mot : {exc}")
-            finally:
+                    if verification and not verification["ok"]:
+                        st.session_state.pending_word = new_row
+                        st.session_state.pending_verification = verification
+                    else:
+                        try:
+                            save_word_to_sheet(new_row)
+                            st.session_state.base_db = deduplicate_entries([*st.session_state.base_db, new_row])
+                            if verification:
+                                st.success(
+                                    f"**{new_fr}** = **{new_pt}** ajouté !"
+                                )
+                            else:
+                                st.success(f"**{new_fr}** ajouté !")
+                        except Exception as exc:
+                            st.error(f"Impossible d'ajouter le mot : {exc}")
+
+        pending_word = st.session_state.get("pending_word")
+        pending_verification = st.session_state.get("pending_verification")
+        if pending_word and pending_verification:
+            st.warning(
+                "La traduction saisie semble incohérente. "
+                f"**{pending_word['fr']}** ≠ **{pending_word['pt']}** selon la vérification automatique. "
+                f"Suggestion : **{pending_verification['expected_pt']}** (PT) ≈ **{pending_verification['expected_fr']}** (FR)"
+            )
+            st.write("Es-tu sûr de cette traduction ?")
+            confirm_col, cancel_col = st.columns(2)
+            if confirm_col.button("Oui", key="confirm_pending_word", use_container_width=True):
+                try:
+                    save_word_to_sheet(pending_word)
+                    st.session_state.base_db = deduplicate_entries([*st.session_state.base_db, pending_word])
+                    st.success(f"**{pending_word['fr']}** ajouté malgré l'avertissement.")
+                except Exception as exc:
+                    st.error(f"Impossible d'ajouter le mot : {exc}")
+                finally:
+                    st.session_state.pending_word = None
+                    st.session_state.pending_verification = None
+            if cancel_col.button("Non", key="cancel_pending_word", use_container_width=True):
                 st.session_state.pending_word = None
                 st.session_state.pending_verification = None
-        if cancel_col.button("Non", key="cancel_pending_word", use_container_width=True):
-            st.session_state.pending_word = None
-            st.session_state.pending_verification = None
-            st.info("Ajout annulé.")
+                st.info("Ajout annulé.")
 
 # --- SESSION STATE ---
 if 'index' not in st.session_state:
