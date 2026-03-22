@@ -8,6 +8,7 @@ import pandas as pd
 import streamlit.components.v1 as components
 from deep_translator import GoogleTranslator
 from rapidfuzz import fuzz
+from st_keyup import st_keyup
 from streamlit_gsheets import GSheetsConnection
 
 # --- CONFIGURATION ---
@@ -527,7 +528,6 @@ with st.sidebar.expander("Ajouter du vocabulaire"):
                 st.rerun()
 
 with st.sidebar.expander("Traduction FR/PT"):
-    translate_sidebar_text()
     is_fr_to_pt = st.session_state.translator_direction == "fr_to_pt"
     source_label = "Français" if is_fr_to_pt else "Português"
     target_label = "Português" if is_fr_to_pt else "Français"
@@ -538,19 +538,24 @@ with st.sidebar.expander("Traduction FR/PT"):
         on_click=invert_sidebar_translation,
         use_container_width=True,
     )
-    st.text_input(
+    previous_source_text = st.session_state.translator_source_text
+    source_text = st_keyup(
         source_label,
-        key="translator_source_text",
+        value=previous_source_text,
+        key=f"translator_source_keyup_{st.session_state.translator_direction}",
         placeholder=f"Écris en {source_label.lower()}...",
     )
+    st.session_state.translator_source_text = source_text or ""
+    if st.session_state.translator_source_text != previous_source_text:
+        st.session_state.translator_last_request = None
     translate_sidebar_text()
     st.text_input(
         target_label,
         key="translator_target_text",
-        disabled=False,
+        disabled=True,
     )
     st.button(
-        "Ajouter cette traduction à la BDD",
+        "Ajouter cette traduction",
         key="translator_add_to_db",
         on_click=add_translator_pair_to_db,
         use_container_width=True,

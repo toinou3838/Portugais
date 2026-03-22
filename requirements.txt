@@ -5,3 +5,4 @@ streamlit>=1.32
 rapidfuzz>=3.0
 st-gsheets-connection
 pandas
+streamlit-keyup
