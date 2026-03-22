@@ -301,11 +301,14 @@ def build_offline_quiz_html(quiz_entries):
         for item in quiz_entries
     ]
 
+    quiz_json = json.dumps(quiz_payload, ensure_ascii=False).replace("</", "<\\/")
     template = OFFLINE_TEMPLATE_PATH.read_text(encoding="utf-8")
     return (
         template
-        .replace("__QUIZ_DATA_JSON__", json.dumps(quiz_payload, ensure_ascii=False))
+        .replace("__QUIZ_DATA_JSON__", quiz_json)
         .replace("__QUIZ_TITLE__", "O Mestre do Portugues - Quiz hors ligne")
+        .replace("__MANIFEST_LINK__", "")
+        .replace("__PWA_BOOTSTRAP__", "")
     )
 
 
