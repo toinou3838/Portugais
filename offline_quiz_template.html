@@ -228,6 +228,10 @@
 </head>
 <body>
   <div class="shell">
+    <div id="browser-warning" class="card" style="grid-column: 1 / -1; padding: 16px 20px; background:#fff6d8; color:#9c6b00;">
+      Ce fichier doit etre ouvert dans un vrai navigateur web. Si les boutons ne repondent pas, tu es probablement dans Preview ou Quick Look.
+      Ouvre le fichier avec Safari, Chrome ou Firefox.
+    </div>
     <aside class="sidebar card">
       <h1 class="brand">O Mestre do Portugues</h1>
       <p class="small">Version hors ligne du quizz exporté. Aucune connexion n'est nécessaire après téléchargement.</p>
@@ -276,25 +280,30 @@
   <script id="quiz-data" type="application/json">__QUIZ_DATA_JSON__</script>
 
   <script>
+    document.getElementById("browser-warning").classList.add("hidden");
     const rawQuizData = document.getElementById("quiz-data").textContent.trim();
-    if (!rawQuizData || rawQuizData === "__QUIZ_DATA_JSON__") {
+    let originalQuiz;
+    try {
+      originalQuiz = JSON.parse(rawQuizData);
+      if (!Array.isArray(originalQuiz)) {
+        throw new Error("Quiz payload is not an array.");
+      }
+    } catch (error) {
       document.body.innerHTML = `
         <div class="shell" style="grid-template-columns: 1fr;">
           <main class="content card">
             <h1 class="brand">Fichier template detecte</h1>
             <div class="feedback warning">
               Ce fichier <strong>offline_quiz_template.html</strong> est seulement le modele.
-              Il ne contient aucun quiz. Pour obtenir un quiz hors ligne fonctionnel, il faut utiliser le bouton
+              Il ne contient aucun quiz valide. Pour obtenir un quiz hors ligne fonctionnel, il faut utiliser le bouton
               <strong>Telecharger le quiz hors ligne</strong> dans l'application Streamlit, puis ouvrir le fichier
-              <strong>quiz_portugais_offline.html</strong> genere.
+              <strong>quiz_portugais_offline.html</strong> genere dans un vrai navigateur.
             </div>
           </main>
         </div>
       `;
-      throw new Error("Template offline ouvert sans donnees de quiz.");
+      throw error;
     }
-
-    const originalQuiz = JSON.parse(rawQuizData);
     let quiz = originalQuiz.map((item) => ({ ...item }));
     let history = Array(quiz.length).fill(null);
     let currentIndex = 0;
