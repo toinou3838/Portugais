@@ -59,6 +59,20 @@ st.markdown("""
             border-radius: 999px;
             transition: width 0.2s ease;
         }
+
+        @media (max-width: 640px) {
+            [data-testid="stForm"] [data-testid="stHorizontalBlock"] {
+                display: flex !important;
+                flex-wrap: nowrap !important;
+                gap: 0.6rem !important;
+            }
+
+            [data-testid="stForm"] [data-testid="column"] {
+                flex: 1 1 0 !important;
+                width: 0 !important;
+                min-width: 0 !important;
+            }
+        }
     </style>
     """, unsafe_allow_html=True)
 

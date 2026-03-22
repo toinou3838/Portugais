@@ -273,8 +273,28 @@
     </main>
   </div>
 
+  <script id="quiz-data" type="application/json">__QUIZ_DATA_JSON__</script>
+
   <script>
-    const originalQuiz = __QUIZ_DATA_JSON__;
+    const rawQuizData = document.getElementById("quiz-data").textContent.trim();
+    if (!rawQuizData || rawQuizData === "__QUIZ_DATA_JSON__") {
+      document.body.innerHTML = `
+        <div class="shell" style="grid-template-columns: 1fr;">
+          <main class="content card">
+            <h1 class="brand">Fichier template detecte</h1>
+            <div class="feedback warning">
+              Ce fichier <strong>offline_quiz_template.html</strong> est seulement le modele.
+              Il ne contient aucun quiz. Pour obtenir un quiz hors ligne fonctionnel, il faut utiliser le bouton
+              <strong>Telecharger le quiz hors ligne</strong> dans l'application Streamlit, puis ouvrir le fichier
+              <strong>quiz_portugais_offline.html</strong> genere.
+            </div>
+          </main>
+        </div>
+      `;
+      throw new Error("Template offline ouvert sans donnees de quiz.");
+    }
+
+    const originalQuiz = JSON.parse(rawQuizData);
     let quiz = originalQuiz.map((item) => ({ ...item }));
     let history = Array(quiz.length).fill(null);
     let currentIndex = 0;
