@@ -328,6 +328,50 @@ def invert_sidebar_translation():
     st.session_state.translator_last_request = None
 
 
+def add_translator_pair_to_db():
+    direction = st.session_state.get("translator_direction", "fr_to_pt")
+    source_text = st.session_state.get("translator_source_text", "").strip()
+    target_text = st.session_state.get("translator_target_text", "").strip()
+
+    if not source_text or not target_text:
+        st.session_state.admin_feedback = ("warning", "Aucune traduction complete à ajouter.")
+        return
+
+    if direction == "fr_to_pt":
+        new_row = {
+            "fr": source_text,
+            "pt": target_text,
+            "dir": random.randint(0, 1),
+            "source": "vocab",
+        }
+    else:
+        new_row = {
+            "fr": target_text,
+            "pt": source_text,
+            "dir": random.randint(0, 1),
+            "source": "vocab",
+        }
+
+    existing_pairs = {
+        (normalize_tokens(item["fr"]), normalize_tokens(item["pt"]))
+        for item in st.session_state.base_db
+    }
+    new_pair = (normalize_tokens(new_row["fr"]), normalize_tokens(new_row["pt"]))
+    if new_pair in existing_pairs:
+        st.session_state.admin_feedback = ("warning", "Cette traduction existe déjà dans la base.")
+        return
+
+    try:
+        save_word_to_sheet(new_row)
+        st.session_state.base_db = deduplicate_entries([*st.session_state.base_db, new_row])
+        st.session_state.admin_feedback = (
+            "success",
+            f"**{new_row['fr']}** = **{new_row['pt']}** ajouté depuis le traducteur !",
+        )
+    except Exception as exc:
+        st.session_state.admin_feedback = ("error", f"Impossible d'ajouter la traduction : {exc}")
+
+
 def build_offline_quiz_html(quiz_entries):
     if not OFFLINE_TEMPLATE_PATH.exists():
         raise FileNotFoundError(f"Template introuvable : {OFFLINE_TEMPLATE_PATH}")
@@ -504,6 +548,12 @@ with st.sidebar.expander("Traduction FR/PT"):
         target_label,
         key="translator_target_text",
         disabled=False,
+    )
+    st.button(
+        "Ajouter cette traduction à la BDD",
+        key="translator_add_to_db",
+        on_click=add_translator_pair_to_db,
+        use_container_width=True,
     )
 
     if st.session_state.translator_error:
