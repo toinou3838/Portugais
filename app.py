@@ -32,6 +32,33 @@ st.markdown("""
             border-radius: 4px !important;
             font-size: 1rem !important;
             font-family: inherit !important;
+            font-weight: 400 !important;
+            line-height: 1.4 !important;
+            min-height: 2.5rem !important;
+            padding: 0.5rem 0.75rem !important;
+            box-shadow: none !important;
+            outline: none !important;
+        }
+
+        .st-keyup input::placeholder {
+            color: #767d87 !important;
+            opacity: 1 !important;
+            font-weight: 400 !important;
+        }
+
+        .st-keyup label {
+            font-family: inherit !important;
+            font-size: 1rem !important;
+            font-weight: 400 !important;
+            color: #1e1e1e !important;
+        }
+
+        .st-keyup > div {
+            width: 100% !important;
+        }
+
+        .st-keyup iframe {
+            width: 100% !important;
         }
 
         [data-testid="stExpander"] [data-testid="stHorizontalBlock"] {
