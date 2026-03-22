@@ -287,6 +287,47 @@ def render_add_word_keyboard_shortcuts():
     )
 
 
+def translate_sidebar_text():
+    direction = st.session_state.get("translator_direction", "fr_to_pt")
+    source_text = st.session_state.get("translator_source_text", "").strip()
+    request_key = (direction, source_text)
+
+    if not source_text:
+        st.session_state.translator_target_text = ""
+        st.session_state.translator_error = None
+        st.session_state.translator_last_request = None
+        return
+
+    if st.session_state.get("translator_last_request") == request_key:
+        return
+
+    source_lang = "fr" if direction == "fr_to_pt" else "pt"
+    target_lang = "pt" if direction == "fr_to_pt" else "fr"
+
+    try:
+        translated_text = GoogleTranslator(source=source_lang, target=target_lang).translate(source_text)
+        st.session_state.translator_target_text = translated_text
+        st.session_state.translator_error = None
+        st.session_state.translator_last_request = request_key
+    except Exception as exc:
+        st.session_state.translator_target_text = ""
+        st.session_state.translator_error = f"Traduction indisponible : {exc}"
+        st.session_state.translator_last_request = None
+
+
+def invert_sidebar_translation():
+    current_source = st.session_state.get("translator_source_text", "")
+    current_target = st.session_state.get("translator_target_text", "")
+
+    st.session_state.translator_direction = (
+        "pt_to_fr" if st.session_state.get("translator_direction", "fr_to_pt") == "fr_to_pt" else "fr_to_pt"
+    )
+    st.session_state.translator_source_text = current_target
+    st.session_state.translator_target_text = current_source
+    st.session_state.translator_error = None
+    st.session_state.translator_last_request = None
+
+
 def build_offline_quiz_html(quiz_entries):
     if not OFFLINE_TEMPLATE_PATH.exists():
         raise FileNotFoundError(f"Template introuvable : {OFFLINE_TEMPLATE_PATH}")
@@ -328,6 +369,17 @@ def render_offline_export_button():
 
 if 'base_db' not in st.session_state:
     st.session_state.base_db = load_base_db()
+
+if 'translator_direction' not in st.session_state:
+    st.session_state.translator_direction = "fr_to_pt"
+if 'translator_source_text' not in st.session_state:
+    st.session_state.translator_source_text = ""
+if 'translator_target_text' not in st.session_state:
+    st.session_state.translator_target_text = ""
+if 'translator_error' not in st.session_state:
+    st.session_state.translator_error = None
+if 'translator_last_request' not in st.session_state:
+    st.session_state.translator_last_request = None
 
 # --- SECTION ADMINISTRATION (Ajouter un mot) ---
 with st.sidebar.expander("Ajouter du vocabulaire"):
@@ -429,6 +481,33 @@ with st.sidebar.expander("Ajouter du vocabulaire"):
                     st.session_state.pending_word = None
                     st.session_state.pending_verification = None
                 st.rerun()
+
+with st.sidebar.expander("Traduction français ↔ portugais"):
+    translate_sidebar_text()
+    is_fr_to_pt = st.session_state.translator_direction == "fr_to_pt"
+    source_label = "Français" if is_fr_to_pt else "Português"
+    target_label = "Português" if is_fr_to_pt else "Français"
+
+    st.button(
+        "Inverser la traduction",
+        key="translator_invert_button",
+        on_click=invert_sidebar_translation,
+        use_container_width=True,
+    )
+    st.text_input(
+        source_label,
+        key="translator_source_text",
+        placeholder=f"Écris en {source_label.lower()}...",
+    )
+    translate_sidebar_text()
+    st.text_input(
+        target_label,
+        key="translator_target_text",
+        disabled=True,
+    )
+
+    if st.session_state.translator_error:
+        st.warning(st.session_state.translator_error)
 
 # --- SESSION STATE ---
 if 'index' not in st.session_state:
