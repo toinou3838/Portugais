@@ -61,17 +61,26 @@ st.markdown("""
         }
 
         @media (max-width: 640px) {
+            [data-testid="stForm"] {
+                width: 100% !important;
+                max-width: 100% !important;
+                overflow-x: hidden !important;
+            }
+
             [data-testid="stForm"] [data-testid="stHorizontalBlock"] {
                 display: flex !important;
                 flex-wrap: nowrap !important;
                 gap: 0.35rem !important;
+                width: 100% !important;
+                max-width: 100% !important;
             }
 
             [data-testid="stForm"] [data-testid="column"] {
                 flex: 1 1 0 !important;
-                width: calc(50% - 0.175rem) !important;
-                max-width: calc(50% - 0.175rem) !important;
+                width: 50% !important;
+                max-width: 50% !important;
                 min-width: 0 !important;
+                padding: 0 !important;
             }
 
             [data-testid="stForm"] [data-testid="column"] > div {
@@ -80,6 +89,8 @@ st.markdown("""
             }
 
             [data-testid="stForm"] button {
+                width: 100% !important;
+                max-width: 100% !important;
                 font-size: 0.72rem !important;
                 padding-left: 0.25rem !important;
                 padding-right: 0.25rem !important;
