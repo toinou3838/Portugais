@@ -64,13 +64,25 @@ st.markdown("""
             [data-testid="stForm"] [data-testid="stHorizontalBlock"] {
                 display: flex !important;
                 flex-wrap: nowrap !important;
-                gap: 0.6rem !important;
+                gap: 0.35rem !important;
             }
 
             [data-testid="stForm"] [data-testid="column"] {
                 flex: 1 1 0 !important;
-                width: 0 !important;
+                width: calc(50% - 0.175rem) !important;
+                max-width: calc(50% - 0.175rem) !important;
                 min-width: 0 !important;
+            }
+
+            [data-testid="stForm"] [data-testid="column"] > div {
+                width: 100% !important;
+                min-width: 0 !important;
+            }
+
+            [data-testid="stForm"] button {
+                font-size: 0.72rem !important;
+                padding-left: 0.25rem !important;
+                padding-right: 0.25rem !important;
             }
         }
     </style>
