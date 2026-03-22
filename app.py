@@ -25,6 +25,15 @@ st.markdown("""
             border: 1px solid #d0d0d0; border-radius: 4px;
         }
 
+        .st-keyup > div > div > input {
+            background-color: #ffffff !important;
+            color: #1e1e1e !important;
+            border: 1px solid #d0d0d0 !important;
+            border-radius: 4px !important;
+            font-size: 1rem !important;
+            font-family: inherit !important;
+        }
+
         [data-testid="stExpander"] [data-testid="stHorizontalBlock"] {
             gap: 0.35rem !important;
         }
@@ -307,7 +316,7 @@ def translate_sidebar_text():
 
     try:
         translated_text = GoogleTranslator(source=source_lang, target=target_lang).translate(source_text)
-        st.session_state.translator_target_text = translated_text
+        st.session_state.translator_target_text = str(translated_text).lower()
         st.session_state.translator_error = None
         st.session_state.translator_last_request = request_key
     except Exception as exc:
