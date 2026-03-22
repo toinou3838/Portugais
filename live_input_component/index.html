@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root {
+      color-scheme: light;
+      --text: #31333f;
+      --muted: #767d87;
+      --border: rgba(49, 51, 63, 0.2);
+      --bg: #ffffff;
+      --radius: 0.5rem;
+      --focus: rgb(255, 75, 75);
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      font-family: "Source Sans Pro", sans-serif;
+      color: var(--text);
+    }
+
+    .field {
+      width: 100%;
+      display: grid;
+      gap: 0.28rem;
+    }
+
+    label {
+      font-size: 1rem;
+      font-weight: 400;
+      line-height: 1.5;
+      color: var(--text);
+    }
+
+    input {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg);
+      color: var(--text);
+      font: inherit;
+      font-size: 1rem;
+      line-height: 1.4;
+      padding: 0.625rem 0.75rem;
+      outline: none;
+      box-shadow: none;
+    }
+
+    input::placeholder {
+      color: var(--muted);
+      opacity: 1;
+    }
+
+    input:focus {
+      border-color: var(--focus);
+      box-shadow: 0 0 0 1px var(--focus);
+    }
+
+    input:disabled {
+      background: #f3f4f8;
+      color: #8a8f98;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <div class="field">
+    <label id="label" for="input"></label>
+    <input id="input" type="text" />
+  </div>
+
+  <script src="https://unpkg.com/streamlit-component-lib@2.0.0/dist/index.js"></script>
+  <script>
+    const labelEl = document.getElementById("label");
+    const inputEl = document.getElementById("input");
+    let initialized = false;
+    let lastValue = "";
+
+    function syncHeight() {
+      Streamlit.setFrameHeight(document.documentElement.scrollHeight);
+    }
+
+    function onRender(event) {
+      const args = event.detail.args || {};
+      labelEl.textContent = args.label || "";
+      inputEl.placeholder = args.placeholder || "";
+      inputEl.disabled = !!args.disabled;
+
+      const nextValue = args.value ?? "";
+      if (!initialized || document.activeElement !== inputEl || nextValue !== lastValue) {
+        inputEl.value = nextValue;
+        lastValue = nextValue;
+      }
+
+      initialized = true;
+      syncHeight();
+    }
+
+    inputEl.addEventListener("input", (event) => {
+      lastValue = event.target.value;
+      Streamlit.setComponentValue(lastValue);
+    });
+
+    window.addEventListener("load", syncHeight);
+    Streamlit.events.addEventListener(Streamlit.RENDER_EVENT, onRender);
+    Streamlit.setComponentReady();
+    syncHeight();
+  </script>
+</body>
+</html>
