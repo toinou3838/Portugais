@@ -73,19 +73,33 @@
     <input id="input" type="text" />
   </div>
 
-  <script src="https://unpkg.com/streamlit-component-lib@2.0.0/dist/index.js"></script>
   <script>
     const labelEl = document.getElementById("label");
     const inputEl = document.getElementById("input");
     let initialized = false;
     let lastValue = "";
+    const COMPONENT_READY = "streamlit:componentReady";
+    const SET_COMPONENT_VALUE = "streamlit:setComponentValue";
+    const SET_FRAME_HEIGHT = "streamlit:setFrameHeight";
+    const RENDER_EVENT = "streamlit:render";
+
+    function sendMessage(type, data) {
+      const payload = Object.assign(
+        {
+          isStreamlitMessage: true,
+          type,
+        },
+        data || {}
+      );
+      window.parent.postMessage(payload, "*");
+    }
 
     function syncHeight() {
-      Streamlit.setFrameHeight(document.documentElement.scrollHeight);
+      sendMessage(SET_FRAME_HEIGHT, { height: document.documentElement.scrollHeight });
     }
 
     function onRender(event) {
-      const args = event.detail.args || {};
+      const args = (event.data && event.data.args) || {};
       labelEl.textContent = args.label || "";
       inputEl.placeholder = args.placeholder || "";
       inputEl.disabled = !!args.disabled;
@@ -102,12 +116,17 @@
 
     inputEl.addEventListener("input", (event) => {
       lastValue = event.target.value;
-      Streamlit.setComponentValue(lastValue);
+      sendMessage(SET_COMPONENT_VALUE, { value: lastValue });
+    });
+
+    window.addEventListener("message", (event) => {
+      if (event.data && event.data.type === RENDER_EVENT) {
+        onRender(event);
+      }
     });
 
     window.addEventListener("load", syncHeight);
-    Streamlit.events.addEventListener(Streamlit.RENDER_EVENT, onRender);
-    Streamlit.setComponentReady();
+    sendMessage(COMPONENT_READY, { apiVersion: 1 });
     syncHeight();
   </script>
 </body>
