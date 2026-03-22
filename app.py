@@ -8,6 +8,7 @@ import pandas as pd
 import streamlit.components.v1 as components
 from deep_translator import GoogleTranslator
 from rapidfuzz import fuzz
+from st_keyup import st_keyup
 from streamlit_gsheets import GSheetsConnection
 
 # --- CONFIGURATION ---
@@ -107,9 +108,7 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 
 VERBS_DATASET_PATH = Path("verbs_dataset.json")
 OFFLINE_TEMPLATE_PATH = Path("offline_quiz_template.html")
-LIVE_INPUT_COMPONENT_PATH = Path(__file__).parent / "live_input_component"
 SHEET_NAME = "Feuille1"
-live_input_component = components.declare_component("live_input_component", path=str(LIVE_INPUT_COMPONENT_PATH))
 
 
 def normalize(text):
@@ -286,17 +285,6 @@ def render_add_word_keyboard_shortcuts():
         </script>
         """,
         height=0,
-    )
-
-
-def live_text_input(label, value="", placeholder="", key=None, disabled=False):
-    return live_input_component(
-        label=label,
-        value=value,
-        placeholder=placeholder,
-        disabled=disabled,
-        key=key,
-        default=value,
     )
 
 
@@ -551,10 +539,10 @@ with st.sidebar.expander("Traduction FR/PT"):
         use_container_width=True,
     )
     previous_source_text = st.session_state.translator_source_text
-    source_text = live_text_input(
+    source_text = st_keyup(
         source_label,
         value=previous_source_text,
-        key=f"translator_source_live_{st.session_state.translator_direction}",
+        key=f"translator_source_keyup_{st.session_state.translator_direction}",
         placeholder=f"Écris en {source_label.lower()}...",
     )
     st.session_state.translator_source_text = source_text or ""
