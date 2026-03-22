@@ -230,7 +230,7 @@
   <div class="shell">
     <aside class="sidebar card">
       <h1 class="brand">O Mestre do Portugues</h1>
-      <p class="small">Version hors ligne du quiz exporte. Aucune connexion n'est necessaire apres telechargement.</p>
+      <p class="small">Version hors ligne du quizz exporté. Aucune connexion n'est nécéssaire après téléchargement.</p>
       <div class="score-box">
         <strong id="sidebar-score">Score : 0 / 0</strong>
         <span id="sidebar-remaining">Questions restantes : 0</span>
@@ -241,7 +241,7 @@
     <main class="content card">
       <div class="topbar">
         <div id="question-counter">Question 1</div>
-        <button class="btn" id="finish-btn" type="button">Terminer le quiz</button>
+        <button class="btn" id="finish-btn" type="button">Terminer le quizz</button>
       </div>
       <div class="progress">
         <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
@@ -481,7 +481,7 @@
 
     function skipCurrentQuestion() {
       if (finished || history[currentIndex] !== null) return;
-      setFeedback("warning", "Question passee. Elle reste non repondue.");
+      setFeedback("warning", "Question passée. Elle reste non repondue.");
       currentIndex = Math.min(currentIndex + 1, quiz.length);
       render();
     }
