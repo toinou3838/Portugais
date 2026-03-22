@@ -552,7 +552,7 @@ with st.sidebar.expander("Traduction FR/PT"):
     st.text_input(
         target_label,
         key="translator_target_text",
-        disabled=True,
+        disabled=False,
     )
     st.button(
         "Ajouter cette traduction",
