@@ -482,7 +482,7 @@ with st.sidebar.expander("Ajouter du vocabulaire"):
                     st.session_state.pending_verification = None
                 st.rerun()
 
-with st.sidebar.expander("Traduction français ↔ portugais"):
+with st.sidebar.expander("Traduction FR/PT"):
     translate_sidebar_text()
     is_fr_to_pt = st.session_state.translator_direction == "fr_to_pt"
     source_label = "Français" if is_fr_to_pt else "Português"
@@ -503,7 +503,7 @@ with st.sidebar.expander("Traduction français ↔ portugais"):
     st.text_input(
         target_label,
         key="translator_target_text",
-        disabled=True,
+        disabled=False,
     )
 
     if st.session_state.translator_error:
