@@ -6,3 +6,11 @@ rapidfuzz>=3.0
 st-gsheets-connection
 pandas
 streamlit-keyup
+requests
+fastapi
+uvicorn
+sqlalchemy
+authlib
+itsdangerous
+email-validator
+python-dotenv

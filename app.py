@@ -2,9 +2,11 @@ import streamlit as st
 import unicodedata
 import random
 import json
+import os
 from pathlib import Path
 
 import pandas as pd
+import requests
 import streamlit.components.v1 as components
 from deep_translator import GoogleTranslator
 from rapidfuzz import fuzz
@@ -109,6 +111,11 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 VERBS_DATASET_PATH = Path("verbs_dataset.json")
 OFFLINE_TEMPLATE_PATH = Path("offline_quiz_template.html")
 SHEET_NAME = "Feuille1"
+BACKEND_URL = st.secrets.get("backend", {}).get("url", os.getenv("BACKEND_URL", "")).rstrip("/")
+STREAMLIT_PUBLIC_URL = st.secrets.get("backend", {}).get(
+    "streamlit_app_url",
+    os.getenv("STREAMLIT_PUBLIC_URL", ""),
+)
 
 
 def normalize(text):
@@ -412,6 +419,170 @@ def render_offline_export_button():
         help="Télécharge une page HTML autonome du quiz courant. Elle fonctionne ensuite sans réseau.",
     )
 
+
+def backend_is_configured():
+    return bool(BACKEND_URL)
+
+
+def get_backend_headers():
+    auth_token = st.session_state.get("backend_auth_token")
+    if not auth_token:
+        return {}
+    return {"Authorization": f"Bearer {auth_token}"}
+
+
+def backend_request(method, path, **kwargs):
+    if not backend_is_configured():
+        return None
+
+    url = f"{BACKEND_URL}{path}"
+    timeout = kwargs.pop("timeout", 6)
+    headers = kwargs.pop("headers", {})
+    headers.update(get_backend_headers())
+
+    try:
+        response = requests.request(method, url, headers=headers, timeout=timeout, **kwargs)
+    except requests.RequestException as exc:
+        st.session_state.backend_status_message = f"Backend indisponible : {exc}"
+        return None
+
+    if response.status_code == 401:
+        st.session_state.backend_auth_token = None
+        st.session_state.backend_profile = None
+        st.session_state.backend_status_message = "Session expirée. Reconnecte-toi."
+        return None
+
+    if not response.ok:
+        try:
+            detail = response.json().get("detail", response.text)
+        except ValueError:
+            detail = response.text
+        st.session_state.backend_status_message = f"Backend error: {detail}"
+        return None
+
+    st.session_state.backend_status_message = None
+    return response
+
+
+def sync_auth_token_from_query_params():
+    query_params = st.query_params
+    token = query_params.get("auth_token")
+    if token:
+        st.session_state.backend_auth_token = token
+        st.session_state.backend_profile = None
+        del query_params["auth_token"]
+
+
+def fetch_backend_profile(force=False):
+    if not backend_is_configured():
+        return None
+    if not st.session_state.get("backend_auth_token"):
+        st.session_state.backend_profile = None
+        return None
+    if st.session_state.get("backend_profile") is not None and not force:
+        return st.session_state.backend_profile
+
+    response = backend_request("GET", "/me")
+    if response is None:
+        return None
+
+    st.session_state.backend_profile = response.json()
+    return st.session_state.backend_profile
+
+
+def get_backend_login_url():
+    if not backend_is_configured():
+        return None
+
+    next_url = STREAMLIT_PUBLIC_URL or st.query_params.get("_streamlit_app_url") or ""
+    if next_url:
+        return f"{BACKEND_URL}/auth/google/login?next={requests.utils.quote(next_url, safe='')}"
+    return f"{BACKEND_URL}/auth/google/login"
+
+
+def logout_backend():
+    st.session_state.backend_auth_token = None
+    st.session_state.backend_profile = None
+    st.session_state.backend_status_message = None
+
+
+def update_backend_reminder_preference(reminder_opt_in):
+    response = backend_request("POST", "/preferences/reminders", json={"reminder_opt_in": reminder_opt_in})
+    if response is not None:
+        st.session_state.backend_profile = response.json()
+
+
+def report_quiz_session_to_backend(answered_questions, correct_answers, quiz_size):
+    if not backend_is_configured() or not st.session_state.get("backend_auth_token"):
+        return
+    quiz_run_id = st.session_state.get("quiz_run_id")
+    if not quiz_run_id:
+        return
+    if st.session_state.get("backend_last_synced_quiz_id") == quiz_run_id:
+        return
+
+    response = backend_request(
+        "POST",
+        "/progress",
+        json={
+            "answered_questions": int(answered_questions),
+            "correct_answers": int(correct_answers),
+            "quiz_size": int(quiz_size),
+        },
+    )
+    if response is None:
+        return
+
+    progress_payload = response.json()
+    st.session_state.backend_last_synced_quiz_id = quiz_run_id
+    profile = fetch_backend_profile(force=True)
+    if profile is None:
+        st.session_state.backend_profile = {
+            "display_name": "Profil",
+            "answered_today": progress_payload["answered_questions"],
+            "daily_goal": 50,
+            "streak": progress_payload["streak"],
+            "reminder_opt_in": True,
+            "avatar_url": None,
+            "email": "",
+            "id": 0,
+        }
+
+
+def render_profile_section():
+    with st.sidebar.expander("Profil / connexion"):
+        if not backend_is_configured():
+            st.caption("Backend désactivé. Le quiz reste utilisable sans compte.")
+            return
+
+        if st.session_state.get("backend_status_message"):
+            st.warning(st.session_state.backend_status_message)
+
+        profile = fetch_backend_profile()
+        if not profile:
+            login_url = get_backend_login_url()
+            st.caption("Connecte-toi avec Google pour activer streaks et rappels email.")
+            if login_url:
+                st.link_button("Connexion Google", login_url, use_container_width=True)
+            return
+
+        st.write(f"**{profile['display_name']}**")
+        if profile.get("email"):
+            st.caption(profile["email"])
+        st.metric("Streak", profile["streak"])
+        st.metric("Questions du jour", f"{profile['answered_today']} / {profile['daily_goal']}")
+        reminder_opt_in = st.toggle(
+            "Rappel email quotidien",
+            value=bool(profile.get("reminder_opt_in", True)),
+            key="backend_reminder_toggle",
+        )
+        if reminder_opt_in != bool(profile.get("reminder_opt_in", True)):
+            update_backend_reminder_preference(reminder_opt_in)
+            st.rerun()
+        if st.button("Se déconnecter", key="logout_backend", use_container_width=True):
+            logout_backend()
+            st.rerun()
+
 if 'base_db' not in st.session_state:
     st.session_state.base_db = load_base_db()
 
@@ -425,6 +596,19 @@ if 'translator_error' not in st.session_state:
     st.session_state.translator_error = None
 if 'translator_last_request' not in st.session_state:
     st.session_state.translator_last_request = None
+if 'backend_auth_token' not in st.session_state:
+    st.session_state.backend_auth_token = None
+if 'backend_profile' not in st.session_state:
+    st.session_state.backend_profile = None
+if 'backend_status_message' not in st.session_state:
+    st.session_state.backend_status_message = None
+if 'backend_last_synced_quiz_id' not in st.session_state:
+    st.session_state.backend_last_synced_quiz_id = None
+if 'quiz_run_id' not in st.session_state:
+    st.session_state.quiz_run_id = None
+
+sync_auth_token_from_query_params()
+render_profile_section()
 
 # --- SECTION ADMINISTRATION (Ajouter un mot) ---
 with st.sidebar.expander("Ajouter du vocabulaire"):
@@ -660,12 +844,14 @@ def reset_quiz_state():
     st.session_state.history = [None] * len(st.session_state.db)
     st.session_state.last_feedback = None
     st.session_state.quiz_finished = False
+    st.session_state.backend_last_synced_quiz_id = None
 
 def start_new_quiz(sample_size, conjugation_pct):
     st.session_state.selected_n = min(sample_size, len(st.session_state.base_db))
     st.session_state.selected_conjugation_pct = max(0, min(100, int(conjugation_pct)))
     st.session_state.db = build_quiz_sample(st.session_state.selected_n, st.session_state.selected_conjugation_pct)
     st.session_state.quiz_started = True
+    st.session_state.quiz_run_id = f"quiz-{random.randint(100000, 999999)}"
     reset_quiz_state()
 
 def restart_inverted_quiz():
@@ -679,6 +865,7 @@ def restart_inverted_quiz():
         for item in st.session_state.db
     ]
     st.session_state.quiz_started = True
+    st.session_state.quiz_run_id = f"quiz-{random.randint(100000, 999999)}"
     reset_quiz_state()
 
 def return_to_setup():
@@ -689,6 +876,7 @@ def return_to_setup():
     st.session_state.last_feedback = None
     st.session_state.quiz_finished = False
     st.session_state.input_field = ""
+    st.session_state.quiz_run_id = None
 
 def validate_current_answer(user_input=None):
     if st.session_state.quiz_finished or not st.session_state.db:
@@ -887,6 +1075,7 @@ if not st.session_state.quiz_finished and not all_answered:
 
 else:
     # FIN DU QUIZ
+    report_quiz_session_to_backend(answered_count, score_total, total_q)
     if st.session_state.last_feedback:
         f_type, f_msg = st.session_state.last_feedback
         if f_type == "success":
