@@ -2,36 +2,12 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from pathlib import Path
-import tomllib
 
 from dotenv import load_dotenv
 
 
 load_dotenv()
 load_dotenv("backend/.env")
-
-
-SECRETS_PATH = Path(".streamlit/secrets.toml")
-
-
-def _load_toml_secrets():
-    if not SECRETS_PATH.exists():
-        return {}
-    with SECRETS_PATH.open("rb") as f:
-        return tomllib.load(f)
-
-
-_TOML_SECRETS = _load_toml_secrets()
-
-
-def _nested_get(data, *keys, default=""):
-    current = data
-    for key in keys:
-        if not isinstance(current, dict) or key not in current:
-            return default
-        current = current[key]
-    return current
 
 
 def _bool_env(name: str, default: bool = False) -> bool:
@@ -45,20 +21,13 @@ def _get_setting(env_name: str, *secret_keys, default=""):
     env_value = os.getenv(env_name)
     if env_value not in (None, ""):
         return env_value
-    secret_value = _nested_get(_TOML_SECRETS, *secret_keys, default=default)
-    return secret_value if secret_value not in (None, "") else default
+    return default
 
 
 def _get_bool_setting(env_name: str, *secret_keys, default: bool = False) -> bool:
     env_value = os.getenv(env_name)
     if env_value not in (None, ""):
         return env_value.strip().lower() in {"1", "true", "yes", "on"}
-
-    secret_value = _nested_get(_TOML_SECRETS, *secret_keys, default=None)
-    if isinstance(secret_value, bool):
-        return secret_value
-    if isinstance(secret_value, str) and secret_value:
-        return secret_value.strip().lower() in {"1", "true", "yes", "on"}
     return default
 
 

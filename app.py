@@ -509,54 +509,10 @@ def get_backend_login_url():
     if not backend_is_configured():
         return None
 
-    next_url = (STREAMLIT_PUBLIC_URL or "http://localhost:8501").strip().rstrip("/")
-    if next_url:
-        return f"{BACKEND_URL}/auth/google/login?next={requests.utils.quote(next_url, safe='')}"
-    return f"{BACKEND_URL}/auth/google/login"
-
-
-def render_dynamic_google_login_button():
-    if not backend_is_configured():
-        return
-
-    login_base_url = f"{BACKEND_URL}/auth/google/login"
-    components.html(
-        f"""
-        <div style="width:100%;">
-          <button
-            id="google-login-button"
-            type="button"
-            style="
-              display:block;
-              width:100%;
-              box-sizing:border-box;
-              text-align:center;
-              padding:0.55rem 0.75rem;
-              border:1px solid #d0d0d0;
-              border-radius:0.5rem;
-              color:#262730;
-              font-family:system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-              font-size:0.95rem;
-              background:#ffffff;
-              cursor:pointer;
-            "
-          >
-            Connexion Google
-          </button>
-        </div>
-        <script>
-          const button = document.getElementById("google-login-button");
-          const parentLocation = window.parent.location;
-          const nextUrl = parentLocation.origin + parentLocation.pathname;
-          const loginUrl = "{login_base_url}?next=" + encodeURIComponent(nextUrl);
-
-          button.addEventListener("click", () => {{
-            window.parent.location.href = loginUrl;
-          }});
-        </script>
-        """,
-        height=56,
-    )
+    next_url = (STREAMLIT_PUBLIC_URL or "").strip().rstrip("/")
+    if not next_url:
+        return None
+    return f"{BACKEND_URL}/auth/google/login?next={requests.utils.quote(next_url, safe='')}"
 
 
 def logout_backend():
@@ -620,8 +576,12 @@ def render_profile_section():
         profile = fetch_backend_profile()
         if not profile:
             st.caption("Connecte-toi avec Google pour activer streaks et rappels email.")
-            st.caption(f"Retour après login : {STREAMLIT_PUBLIC_URL or 'http://localhost:8501'}")
-            render_dynamic_google_login_button()
+            st.caption(f"Retour après login : {STREAMLIT_PUBLIC_URL or 'non configuré'}")
+            login_url = get_backend_login_url()
+            if login_url:
+                st.link_button("Connexion Google", login_url, use_container_width=True)
+            else:
+                st.warning("Renseigne `backend.streamlit_app_url` dans les secrets Streamlit.")
             return
 
         st.write(f"**{profile['display_name']}**")

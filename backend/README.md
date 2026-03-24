@@ -28,6 +28,15 @@ uvicorn backend.main:app --reload --port 8000
    - `backend.url = "http://localhost:8000"`
    - `backend.streamlit_app_url = "http://localhost:8501"`
 
+### Déployer en ligne
+
+Si le backend est public :
+
+- `backend.url = "https://ton-backend.onrender.com"`
+- `backend.streamlit_app_url = "https://ton-app.streamlit.app"`
+- URI de redirection Google OAuth :
+  `https://ton-backend.onrender.com/auth/google/callback`
+
 ### Rappel email
 
 Tu peux déclencher les rappels :
