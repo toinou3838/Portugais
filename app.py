@@ -8,6 +8,7 @@ from pathlib import Path
 import pandas as pd
 import requests
 import streamlit.components.v1 as components
+from streamlit.errors import StreamlitSecretNotFoundError
 from deep_translator import GoogleTranslator
 from rapidfuzz import fuzz
 from st_keyup import st_keyup
@@ -111,10 +112,20 @@ conn = st.connection("gsheets", type=GSheetsConnection)
 VERBS_DATASET_PATH = Path("verbs_dataset.json")
 OFFLINE_TEMPLATE_PATH = Path("offline_quiz_template.html")
 SHEET_NAME = "Feuille1"
-BACKEND_URL = st.secrets.get("backend", {}).get("url", os.getenv("BACKEND_URL", "")).rstrip("/")
-STREAMLIT_PUBLIC_URL = st.secrets.get("backend", {}).get(
+
+
+def get_secret_section(section_name):
+    try:
+        return dict(st.secrets.get(section_name, {}))
+    except StreamlitSecretNotFoundError:
+        return {}
+
+
+backend_secrets = get_secret_section("backend")
+BACKEND_URL = backend_secrets.get("url", os.getenv("BACKEND_URL", "")).rstrip("/")
+STREAMLIT_PUBLIC_URL = backend_secrets.get(
     "streamlit_app_url",
-    os.getenv("STREAMLIT_PUBLIC_URL", ""),
+    os.getenv("STREAMLIT_PUBLIC_URL", "http://localhost:8501"),
 )
 
 
@@ -467,10 +478,14 @@ def backend_request(method, path, **kwargs):
 def sync_auth_token_from_query_params():
     query_params = st.query_params
     token = query_params.get("auth_token")
+    if isinstance(token, list):
+        token = token[0] if token else None
     if token:
         st.session_state.backend_auth_token = token
         st.session_state.backend_profile = None
+        st.session_state.backend_status_message = "Connexion Google réussie."
         del query_params["auth_token"]
+        st.rerun()
 
 
 def fetch_backend_profile(force=False):
@@ -494,10 +509,54 @@ def get_backend_login_url():
     if not backend_is_configured():
         return None
 
-    next_url = STREAMLIT_PUBLIC_URL or st.query_params.get("_streamlit_app_url") or ""
+    next_url = (STREAMLIT_PUBLIC_URL or "http://localhost:8501").strip().rstrip("/")
     if next_url:
         return f"{BACKEND_URL}/auth/google/login?next={requests.utils.quote(next_url, safe='')}"
     return f"{BACKEND_URL}/auth/google/login"
+
+
+def render_dynamic_google_login_button():
+    if not backend_is_configured():
+        return
+
+    login_base_url = f"{BACKEND_URL}/auth/google/login"
+    components.html(
+        f"""
+        <div style="width:100%;">
+          <button
+            id="google-login-button"
+            type="button"
+            style="
+              display:block;
+              width:100%;
+              box-sizing:border-box;
+              text-align:center;
+              padding:0.55rem 0.75rem;
+              border:1px solid #d0d0d0;
+              border-radius:0.5rem;
+              color:#262730;
+              font-family:system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+              font-size:0.95rem;
+              background:#ffffff;
+              cursor:pointer;
+            "
+          >
+            Connexion Google
+          </button>
+        </div>
+        <script>
+          const button = document.getElementById("google-login-button");
+          const parentLocation = window.parent.location;
+          const nextUrl = parentLocation.origin + parentLocation.pathname;
+          const loginUrl = "{login_base_url}?next=" + encodeURIComponent(nextUrl);
+
+          button.addEventListener("click", () => {{
+            window.parent.location.href = loginUrl;
+          }});
+        </script>
+        """,
+        height=56,
+    )
 
 
 def logout_backend():
@@ -560,10 +619,9 @@ def render_profile_section():
 
         profile = fetch_backend_profile()
         if not profile:
-            login_url = get_backend_login_url()
             st.caption("Connecte-toi avec Google pour activer streaks et rappels email.")
-            if login_url:
-                st.link_button("Connexion Google", login_url, use_container_width=True)
+            st.caption(f"Retour après login : {STREAMLIT_PUBLIC_URL or 'http://localhost:8501'}")
+            render_dynamic_google_login_button()
             return
 
         st.write(f"**{profile['display_name']}**")

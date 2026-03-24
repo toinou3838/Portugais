@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from urllib.parse import urlencode
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from authlib.integrations.starlette_client import OAuth
 from fastapi import Depends, FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
@@ -51,6 +51,30 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
     return user
 
 
+def normalize_streamlit_url(raw_url: str | None) -> str:
+    url = (raw_url or settings.streamlit_app_url or "http://localhost:8501").strip()
+    if not url:
+        url = "http://localhost:8501"
+    if "://" not in url:
+        url = f"http://{url}"
+    return url.rstrip("/")
+
+
+def append_query_params(url: str, **params: str) -> str:
+    split_url = urlsplit(url)
+    query = dict(parse_qsl(split_url.query, keep_blank_values=True))
+    query.update(params)
+    return urlunsplit(
+        (
+            split_url.scheme,
+            split_url.netloc,
+            split_url.path,
+            urlencode(query),
+            split_url.fragment,
+        )
+    )
+
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
@@ -62,7 +86,7 @@ async def auth_google_login(request: Request):
         raise HTTPException(status_code=500, detail="Google OAuth is not configured")
 
     redirect_uri = request.url_for("auth_google_callback")
-    next_url = request.query_params.get("next") or settings.streamlit_app_url
+    next_url = normalize_streamlit_url(request.query_params.get("next"))
     request.session["auth_next_url"] = next_url
     return await oauth.google.authorize_redirect(request, str(redirect_uri))
 
@@ -101,9 +125,26 @@ async def auth_google_callback(request: Request, db: Session = Depends(get_db)):
     db.refresh(user)
 
     access_token = create_access_token(user.id)
-    next_url = request.session.pop("auth_next_url", settings.streamlit_app_url)
-    separator = "&" if "?" in next_url else "?"
-    return RedirectResponse(f"{next_url}{separator}{urlencode({'auth_token': access_token})}")
+    next_url = normalize_streamlit_url(request.session.pop("auth_next_url", settings.streamlit_app_url))
+    redirect_url = append_query_params(next_url, auth_token=access_token)
+    html = f"""
+    <!doctype html>
+    <html lang="fr">
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Connexion Google</title>
+      </head>
+      <body style="font-family: sans-serif; padding: 24px;">
+        <p>Connexion réussie. Redirection vers l'application...</p>
+        <p><a href="{redirect_url}">Continuer</a></p>
+        <script>
+          window.location.replace({redirect_url!r});
+        </script>
+      </body>
+    </html>
+    """
+    return HTMLResponse(html)
 
 
 @app.get("/me", response_model=UserResponse)
