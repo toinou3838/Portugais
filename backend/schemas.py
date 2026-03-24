@@ -14,6 +14,21 @@ class UserResponse(BaseModel):
     streak: int
     answered_today: int
     daily_goal: int
+    auth_provider: str
+
+
+class AuthRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class RegisterRequest(AuthRequest):
+    display_name: str | None = None
+
+
+class AuthResponse(BaseModel):
+    access_token: str
+    user: UserResponse
 
 
 class ProgressIn(BaseModel):

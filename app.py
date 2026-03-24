@@ -510,16 +510,81 @@ def get_backend_login_url():
 
     next_url = (STREAMLIT_PUBLIC_URL or "").strip().rstrip("/")
     if not next_url:
-        st.session_state.backend_status_message = "URL publique Streamlit non configurée."
         return None
 
     return f"{BACKEND_URL}/auth/google/login?next={requests.utils.quote(next_url, safe='')}"
+
+
+def render_google_login_button():
+    if not backend_is_configured():
+        return
+
+    login_base_url = f"{BACKEND_URL}/auth/google/login"
+    fallback_next_url = (STREAMLIT_PUBLIC_URL or "").strip().rstrip("/")
+    components.html(
+        f"""
+        <div style="width:100%;">
+          <button
+            id="google-login-button"
+            type="button"
+            style="
+              display:block;
+              width:100%;
+              box-sizing:border-box;
+              text-align:center;
+              padding:0.55rem 0.75rem;
+              border:1px solid #d0d0d0;
+              border-radius:0.5rem;
+              color:#262730;
+              font-family:system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+              font-size:0.95rem;
+              background:#ffffff;
+              cursor:pointer;
+            "
+          >
+            Connexion Google
+          </button>
+        </div>
+        <script>
+          const button = document.getElementById("google-login-button");
+          const parentLocation = window.parent.location;
+          const currentPageUrl = parentLocation.origin + parentLocation.pathname;
+          const fallbackUrl = {fallback_next_url!r};
+          const nextUrl = currentPageUrl.startsWith("http") ? currentPageUrl : fallbackUrl;
+          const loginUrl = "{login_base_url}?next=" + encodeURIComponent(nextUrl);
+
+          button.addEventListener("click", () => {{
+            window.parent.location.href = loginUrl;
+          }});
+        </script>
+        """,
+        height=56,
+    )
 
 
 def logout_backend():
     st.session_state.backend_auth_token = None
     st.session_state.backend_profile = None
     st.session_state.backend_status_message = None
+
+
+def apply_auth_response(payload):
+    st.session_state.backend_auth_token = payload["access_token"]
+    st.session_state.backend_profile = payload["user"]
+    st.session_state.backend_status_message = "Connexion réussie."
+
+
+def authenticate_with_password(path, email, password, display_name=None):
+    payload = {"email": email.strip(), "password": password}
+    if display_name is not None:
+        payload["display_name"] = display_name.strip()
+
+    response = backend_request("POST", path, json=payload)
+    if response is None:
+        return False
+
+    apply_auth_response(response.json())
+    return True
 
 
 def update_backend_reminder_preference(reminder_opt_in):
@@ -565,42 +630,104 @@ def report_quiz_session_to_backend(answered_questions, correct_answers, quiz_siz
         }
 
 
-def render_profile_section():
-    with st.sidebar.expander("Profil / connexion"):
-        if not backend_is_configured():
-            st.caption("Backend désactivé. Le quiz reste utilisable sans compte.")
-            return
-
+def render_profile_popover():
+    header_left, header_right = st.columns([8, 1], vertical_alignment="center")
+    with header_left:
         if st.session_state.get("backend_status_message"):
-            st.warning(st.session_state.backend_status_message)
+            st.caption(st.session_state.backend_status_message)
 
-        profile = fetch_backend_profile()
-        if not profile:
-            st.caption("Connecte-toi avec Google pour activer streaks et rappels email.")
-            st.caption(f"Retour après login : {STREAMLIT_PUBLIC_URL or 'non configuré'}")
-            login_url = get_backend_login_url()
-            if login_url:
-                st.link_button("Connexion Google", login_url, use_container_width=True)
-            else:
-                st.warning("Renseigne `backend.streamlit_app_url` dans les secrets Streamlit.")
-            return
+    if not backend_is_configured():
+        with header_right:
+            st.button("Profil", disabled=True, use_container_width=True)
+        return
 
-        st.write(f"**{profile['display_name']}**")
-        if profile.get("email"):
-            st.caption(profile["email"])
-        st.metric("Streak", profile["streak"])
-        st.metric("Questions du jour", f"{profile['answered_today']} / {profile['daily_goal']}")
-        reminder_opt_in = st.toggle(
-            "Rappel email quotidien",
-            value=bool(profile.get("reminder_opt_in", True)),
-            key="backend_reminder_toggle",
-        )
-        if reminder_opt_in != bool(profile.get("reminder_opt_in", True)):
-            update_backend_reminder_preference(reminder_opt_in)
-            st.rerun()
-        if st.button("Se déconnecter", key="logout_backend", use_container_width=True):
-            logout_backend()
-            st.rerun()
+    profile = fetch_backend_profile()
+    trigger_label = f"🔥 {profile['streak']}" if profile else "Profil"
+
+    with header_right:
+        with st.popover(trigger_label, use_container_width=True):
+            if not profile:
+                st.markdown(
+                    """
+                    <div style="padding:0.4rem 0 0.8rem 0;">
+                      <div style="font-size:2rem;font-weight:800;color:#22253a;">Connexion</div>
+                      <div style="color:#70758d;font-size:1rem;margin-top:0.2rem;">
+                        Active ton suivi perso, ton streak et tes rappels quotidiens.
+                      </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+                render_google_login_button()
+                st.markdown(
+                    """
+                    <div style="display:flex;align-items:center;gap:0.75rem;margin:0.85rem 0 0.35rem 0;color:#8b90a7;">
+                      <div style="height:1px;background:#e8e9f2;flex:1;"></div>
+                      <div style="font-size:0.9rem;">ou</div>
+                      <div style="height:1px;background:#e8e9f2;flex:1;"></div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+                login_tab, signup_tab = st.tabs(["Connexion mail", "Créer un compte"])
+
+                with login_tab:
+                    with st.form("email_login_form", clear_on_submit=False):
+                        login_email = st.text_input("Email", key="login_email")
+                        login_password = st.text_input("Mot de passe", type="password", key="login_password")
+                        submit_login = st.form_submit_button("Se connecter", use_container_width=True)
+                        if submit_login:
+                            if authenticate_with_password("/auth/login", login_email, login_password):
+                                st.rerun()
+
+                with signup_tab:
+                    with st.form("email_signup_form", clear_on_submit=False):
+                        signup_name = st.text_input("Nom affiché", key="signup_name")
+                        signup_email = st.text_input("Email", key="signup_email")
+                        signup_password = st.text_input("Mot de passe", type="password", key="signup_password")
+                        submit_signup = st.form_submit_button("Créer mon compte", use_container_width=True)
+                        if submit_signup:
+                            if authenticate_with_password(
+                                "/auth/register",
+                                signup_email,
+                                signup_password,
+                                display_name=signup_name,
+                            ):
+                                st.rerun()
+                return
+
+            st.markdown(
+                f"""
+                <div style="padding:0.2rem 0 0.8rem 0;">
+                  <div style="font-size:1.55rem;font-weight:800;color:#22253a;">{profile['display_name']}</div>
+                  <div style="color:#70758d;font-size:0.98rem;margin-top:0.15rem;">
+                    Ton espace personnel est synchronisé.
+                  </div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.85rem;">
+                  <div style="padding:0.95rem 1rem;border-radius:16px;background:linear-gradient(145deg,#fff1de,#ffe1b3);">
+                    <div style="font-size:0.86rem;color:#7b4d00;">Streak</div>
+                    <div style="font-size:1.7rem;font-weight:800;color:#34220a;">🔥 {profile['streak']}</div>
+                  </div>
+                  <div style="padding:0.95rem 1rem;border-radius:16px;background:linear-gradient(145deg,#e9f2ff,#dce9ff);">
+                    <div style="font-size:0.86rem;color:#29558d;">Questions du jour</div>
+                    <div style="font-size:1.55rem;font-weight:800;color:#142743;">{profile['answered_today']} / {profile['daily_goal']}</div>
+                  </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+            reminder_opt_in = st.toggle(
+                "Recevoir un rappel email quotidien",
+                value=bool(profile.get("reminder_opt_in", True)),
+                key="backend_reminder_toggle",
+            )
+            if reminder_opt_in != bool(profile.get("reminder_opt_in", True)):
+                update_backend_reminder_preference(reminder_opt_in)
+                st.rerun()
+            if st.button("Se déconnecter", key="logout_backend", use_container_width=True):
+                logout_backend()
+                st.rerun()
 
 if 'base_db' not in st.session_state:
     st.session_state.base_db = load_base_db()
@@ -627,7 +754,7 @@ if 'quiz_run_id' not in st.session_state:
     st.session_state.quiz_run_id = None
 
 sync_auth_token_from_query_params()
-render_profile_section()
+render_profile_popover()
 
 # --- SECTION ADMINISTRATION (Ajouter un mot) ---
 with st.sidebar.expander("Ajouter du vocabulaire"):

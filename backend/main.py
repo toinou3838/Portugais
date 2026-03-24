@@ -5,15 +5,15 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from authlib.integrations.starlette_client import OAuth
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
-from sqlalchemy import select
+from sqlalchemy import inspect, select, text
 from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
 
 from backend.config import settings
 from backend.database import Base, engine, get_db
 from backend.models import User
-from backend.schemas import DailyProgressResponse, ProgressIn, ReminderPreferenceIn, UserResponse
-from backend.security import create_access_token, decode_access_token
+from backend.schemas import AuthRequest, AuthResponse, DailyProgressResponse, ProgressIn, RegisterRequest, ReminderPreferenceIn, UserResponse
+from backend.security import create_access_token, decode_access_token, hash_password, verify_password
 from backend.services import build_user_response, compute_streak, send_due_reminders, update_daily_progress
 
 
@@ -33,6 +33,18 @@ app.add_middleware(SessionMiddleware, secret_key=settings.session_secret)
 @app.on_event("startup")
 def on_startup():
     Base.metadata.create_all(bind=engine)
+    ensure_legacy_columns()
+
+
+def ensure_legacy_columns():
+    inspector = inspect(engine)
+    columns = {column["name"] for column in inspector.get_columns("users")}
+
+    with engine.begin() as connection:
+        if "password_hash" not in columns:
+            connection.execute(text("ALTER TABLE users ADD COLUMN password_hash VARCHAR(512)"))
+        if "auth_provider" not in columns:
+            connection.execute(text("ALTER TABLE users ADD COLUMN auth_provider VARCHAR(32) DEFAULT 'google'"))
 
 
 def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
@@ -115,6 +127,7 @@ async def auth_google_callback(request: Request, db: Session = Depends(get_db)):
             email=email,
             display_name=display_name,
             avatar_url=avatar_url,
+            auth_provider="google",
         )
         db.add(user)
     else:
@@ -122,6 +135,7 @@ async def auth_google_callback(request: Request, db: Session = Depends(get_db)):
         user.email = email
         user.display_name = display_name
         user.avatar_url = avatar_url
+        user.auth_provider = "google"
 
     db.commit()
     db.refresh(user)
@@ -147,6 +161,40 @@ async def auth_google_callback(request: Request, db: Session = Depends(get_db)):
     </html>
     """
     return HTMLResponse(html)
+
+
+@app.post("/auth/register", response_model=AuthResponse)
+def register_with_password(payload: RegisterRequest, db: Session = Depends(get_db)):
+    email = payload.email.strip().lower()
+    existing_user = db.scalar(select(User).where(User.email == email))
+    if existing_user is not None:
+        raise HTTPException(status_code=409, detail="Un compte existe déjà pour cet email")
+
+    display_name = (payload.display_name or email.split("@", 1)[0]).strip()
+    user = User(
+        google_sub=f"local:{email}",
+        email=email,
+        display_name=display_name,
+        password_hash=hash_password(payload.password),
+        auth_provider="password",
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    access_token = create_access_token(user.id)
+    return AuthResponse(access_token=access_token, user=build_user_response(db, user))
+
+
+@app.post("/auth/login", response_model=AuthResponse)
+def login_with_password(payload: AuthRequest, db: Session = Depends(get_db)):
+    email = payload.email.strip().lower()
+    user = db.scalar(select(User).where(User.email == email))
+    if user is None or not verify_password(payload.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Email ou mot de passe invalide")
+
+    access_token = create_access_token(user.id)
+    return AuthResponse(access_token=access_token, user=build_user_response(db, user))
 
 
 @app.get("/me", response_model=UserResponse)

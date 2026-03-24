@@ -69,6 +69,7 @@ def build_user_response(db: Session, user: User) -> dict:
         "email": user.email,
         "display_name": user.display_name,
         "avatar_url": user.avatar_url,
+        "auth_provider": user.auth_provider or "google",
         "reminder_opt_in": user.reminder_opt_in,
         "streak": compute_streak(db, user.id),
         "answered_today": today_progress.answered_questions if today_progress else 0,
