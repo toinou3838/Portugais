@@ -125,8 +125,7 @@ backend_secrets = get_secret_section("backend")
 BACKEND_URL = backend_secrets.get("url", os.getenv("BACKEND_URL", "")).rstrip("/")
 STREAMLIT_PUBLIC_URL = backend_secrets.get(
     "streamlit_app_url",
-    os.getenv("STREAMLIT_PUBLIC_URL", "http://localhost:8501"),
-)
+    os.getenv("STREAMLIT_PUBLIC_URL", ""),).strip().rstrip("/")
 
 
 def normalize(text):
