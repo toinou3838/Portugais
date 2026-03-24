@@ -519,46 +519,36 @@ def render_google_login_button():
     if not backend_is_configured():
         return
 
-    login_base_url = f"{BACKEND_URL}/auth/google/login"
-    fallback_next_url = (STREAMLIT_PUBLIC_URL or "").strip().rstrip("/")
-    components.html(
-        f"""
-        <div style="width:100%;">
-          <button
-            id="google-login-button"
-            type="button"
-            style="
-              display:block;
-              width:100%;
-              box-sizing:border-box;
-              text-align:center;
-              padding:0.55rem 0.75rem;
-              border:1px solid #d0d0d0;
-              border-radius:0.5rem;
-              color:#262730;
-              font-family:system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-              font-size:0.95rem;
-              background:#ffffff;
-              cursor:pointer;
-            "
-          >
-            Connexion Google
-          </button>
-        </div>
-        <script>
-          const button = document.getElementById("google-login-button");
-          const parentLocation = window.parent.location;
-          const currentPageUrl = parentLocation.origin + parentLocation.pathname;
-          const fallbackUrl = {fallback_next_url!r};
-          const nextUrl = currentPageUrl.startsWith("http") ? currentPageUrl : fallbackUrl;
-          const loginUrl = "{login_base_url}?next=" + encodeURIComponent(nextUrl);
+    login_url = get_backend_login_url()
+    if not login_url:
+        login_url = f"{BACKEND_URL}/auth/google/login"
 
-          button.addEventListener("click", () => {{
-            window.parent.location.href = loginUrl;
-          }});
-        </script>
+    st.markdown(
+        f"""
+        <a
+          href="{login_url}"
+          target="_self"
+          style="
+            display:block;
+            width:100%;
+            box-sizing:border-box;
+            text-align:center;
+            text-decoration:none;
+            padding:0.68rem 0.85rem;
+            border:1px solid #d7daea;
+            border-radius:14px;
+            color:#262730;
+            font-family:system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-size:1rem;
+            font-weight:600;
+            background:#ffffff;
+            box-shadow:0 8px 24px rgba(22, 28, 45, 0.06);
+          "
+        >
+          Continuer avec Google
+        </a>
         """,
-        height=56,
+        unsafe_allow_html=True,
     )
 
 
@@ -631,7 +621,7 @@ def report_quiz_session_to_backend(answered_questions, correct_answers, quiz_siz
 
 
 def render_profile_popover():
-    header_left, header_right = st.columns([8, 1], vertical_alignment="center")
+    header_left, header_right = st.columns([7, 1.8], vertical_alignment="center")
     with header_left:
         if st.session_state.get("backend_status_message"):
             st.caption(st.session_state.backend_status_message)
@@ -642,7 +632,7 @@ def render_profile_popover():
         return
 
     profile = fetch_backend_profile()
-    trigger_label = f"🔥 {profile['streak']}" if profile else "Profil"
+    trigger_label = f"🔥 {profile['streak']}" if profile else "Profil / connexion"
 
     with header_right:
         with st.popover(trigger_label, use_container_width=True):
