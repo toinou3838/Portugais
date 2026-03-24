@@ -510,7 +510,9 @@ def get_backend_login_url():
 
     next_url = (STREAMLIT_PUBLIC_URL or "").strip().rstrip("/")
     if not next_url:
+        st.session_state.backend_status_message = "URL publique Streamlit non configurée."
         return None
+
     return f"{BACKEND_URL}/auth/google/login?next={requests.utils.quote(next_url, safe='')}"
 
 
