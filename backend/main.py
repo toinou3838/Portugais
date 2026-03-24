@@ -52,11 +52,11 @@ def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
 
 
 def normalize_streamlit_url(raw_url: str | None) -> str:
-    url = (raw_url or settings.streamlit_app_url or "http://localhost:8501").strip()
+    url = (raw_url or settings.streamlit_app_url).strip()
     if not url:
-        url = "http://localhost:8501"
+        raise HTTPException(status_code=500, detail="STREAMLIT_APP_URL is not configured")
     if "://" not in url:
-        url = f"http://{url}"
+        url = f"https://{url}"
     return url.rstrip("/")
 
 
@@ -86,7 +86,9 @@ async def auth_google_login(request: Request):
         raise HTTPException(status_code=500, detail="Google OAuth is not configured")
 
     redirect_uri = request.url_for("auth_google_callback")
-    next_url = normalize_streamlit_url(request.query_params.get("next"))
+    next_param = request.query_params.get("next")
+    next_url = normalize_streamlit_url(next_param or settings.streamlit_app_url)
+
     request.session["auth_next_url"] = next_url
     return await oauth.google.authorize_redirect(request, str(redirect_uri))
 
