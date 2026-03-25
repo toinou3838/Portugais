@@ -126,6 +126,9 @@ BACKEND_URL = backend_secrets.get("url", os.getenv("BACKEND_URL", "")).rstrip("/
 STREAMLIT_PUBLIC_URL = backend_secrets.get(
     "streamlit_app_url",
     os.getenv("STREAMLIT_PUBLIC_URL", ""),).strip().rstrip("/")
+clerk_secrets = get_secret_section("clerk")
+CLERK_PUBLISHABLE_KEY = clerk_secrets.get("publishable_key", os.getenv("CLERK_PUBLISHABLE_KEY", "")).strip()
+CLERK_FRONTEND_API_URL = clerk_secrets.get("frontend_api_url", os.getenv("CLERK_FRONTEND_API_URL", "")).strip().rstrip("/")
 
 
 def normalize(text):
@@ -515,40 +518,148 @@ def get_backend_login_url():
     return f"{BACKEND_URL}/auth/google/login?next={requests.utils.quote(next_url, safe='')}"
 
 
-def render_google_login_button():
-    if not backend_is_configured():
+def clerk_is_configured():
+    return bool(BACKEND_URL and CLERK_PUBLISHABLE_KEY)
+
+
+def render_clerk_sign_in_button():
+    if not clerk_is_configured():
         return
 
-    login_url = get_backend_login_url()
-    if not login_url:
-        login_url = f"{BACKEND_URL}/auth/google/login"
-
-    st.markdown(
+    components.html(
         f"""
-        <a
-          href="{login_url}"
-          target="_self"
-          style="
-            display:block;
-            width:100%;
-            box-sizing:border-box;
-            text-align:center;
-            text-decoration:none;
-            padding:0.68rem 0.85rem;
-            border:1px solid #d7daea;
-            border-radius:14px;
-            color:#262730;
-            font-family:system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            font-size:1rem;
-            font-weight:600;
-            background:#ffffff;
-            box-shadow:0 8px 24px rgba(22, 28, 45, 0.06);
-          "
-        >
-          Continuer avec Google
-        </a>
+        <div style="width:100%;">
+          <button
+            id="clerk-signin-button"
+            type="button"
+            style="
+              display:block;
+              width:100%;
+              box-sizing:border-box;
+              text-align:center;
+              padding:0.82rem 0.95rem;
+              border:1px solid #d7daea;
+              border-radius:16px;
+              color:#262730;
+              font-family:system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+              font-size:1rem;
+              font-weight:600;
+              background:#ffffff;
+              box-shadow:0 8px 24px rgba(22, 28, 45, 0.06);
+              cursor:pointer;
+            "
+          >
+            Continuer avec Clerk
+          </button>
+          <div id="clerk-signin-status" style="font-size:0.82rem;color:#70758d;margin-top:0.45rem;"></div>
+        </div>
+        <script>
+          const parentWindow = window.parent;
+          const parentDoc = parentWindow.document;
+          const currentPageUrl = parentWindow.location.origin + parentWindow.location.pathname;
+          const fallbackUrl = {STREAMLIT_PUBLIC_URL!r};
+          const completeUrl = currentPageUrl.startsWith("http") ? currentPageUrl : fallbackUrl;
+          const publishableKey = {CLERK_PUBLISHABLE_KEY!r};
+          const frontendApiUrl = {CLERK_FRONTEND_API_URL!r};
+          const backendUrl = {BACKEND_URL!r};
+          const statusNode = document.getElementById("clerk-signin-status");
+          const button = document.getElementById("clerk-signin-button");
+
+          function setStatus(message) {{
+            if (statusNode) {{
+              statusNode.textContent = message || "";
+            }}
+          }}
+
+          async function ensureClerkLoaded() {{
+            if (parentWindow.Clerk && parentWindow.Clerk.loaded) {{
+              return parentWindow.Clerk;
+            }}
+
+            if (!parentWindow.__codexClerkLoadPromise) {{
+              parentWindow.__codexClerkLoadPromise = new Promise((resolve, reject) => {{
+                const existing = parentDoc.querySelector("script[data-codex-clerk='1']");
+                if (existing) {{
+                  existing.addEventListener("load", () => resolve(parentWindow.Clerk));
+                  return;
+                }}
+
+                const script = parentDoc.createElement("script");
+                script.async = true;
+                script.src = "https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js";
+                script.setAttribute("data-codex-clerk", "1");
+                script.onload = () => resolve(parentWindow.Clerk);
+                script.onerror = reject;
+                parentDoc.head.appendChild(script);
+              }});
+            }}
+
+            const clerk = await parentWindow.__codexClerkLoadPromise;
+            if (!clerk.loaded) {{
+              await clerk.load({{
+                publishableKey,
+                frontendApi: frontendApiUrl || undefined,
+              }});
+            }}
+            return clerk;
+          }}
+
+          async function exchangeSession(clerk) {{
+            const clerkToken = await clerk.session?.getToken();
+            if (!clerkToken) return;
+
+            const response = await fetch(`${{backendUrl}}/auth/clerk/exchange`, {{
+              method: "POST",
+              headers: {{ "Content-Type": "application/json" }},
+              body: JSON.stringify({{ clerk_token: clerkToken }}),
+            }});
+            const payload = await response.json();
+            if (!response.ok) {{
+              throw new Error(payload.detail || "Clerk exchange failed");
+            }}
+
+            const targetUrl = new URL(completeUrl);
+            targetUrl.searchParams.set("auth_token", payload.access_token);
+            parentWindow.location.assign(targetUrl.toString());
+          }}
+
+          async function openClerkSignIn() {{
+            try {{
+              setStatus("Chargement de Clerk...");
+              const clerk = await ensureClerkLoaded();
+              setStatus("");
+              await clerk.openSignIn({{
+                appearance: {{
+                  elements: {{
+                    card: {{
+                      boxShadow: "0 24px 60px rgba(16, 24, 40, 0.18)",
+                      borderRadius: "22px",
+                    }},
+                  }},
+                }},
+              }});
+
+              if (parentWindow.__codexClerkPoll) {{
+                parentWindow.clearInterval(parentWindow.__codexClerkPoll);
+              }}
+              parentWindow.__codexClerkPoll = parentWindow.setInterval(async () => {{
+                if (!clerk.session) return;
+                parentWindow.clearInterval(parentWindow.__codexClerkPoll);
+                await exchangeSession(clerk);
+              }}, 700);
+            }} catch (error) {{
+              console.error(error);
+              setStatus("Connexion Clerk indisponible.");
+            }}
+          }}
+
+          if (button && !button.dataset.bound) {{
+            button.dataset.bound = "1";
+            button.addEventListener("click", openClerkSignIn);
+          }}
+        </script>
         """,
-        unsafe_allow_html=True,
+        height=96,
     )
 
 
@@ -648,42 +759,18 @@ def render_profile_popover():
                     """,
                     unsafe_allow_html=True,
                 )
-                render_google_login_button()
+                render_clerk_sign_in_button()
                 st.markdown(
                     """
                     <div style="display:flex;align-items:center;gap:0.75rem;margin:0.85rem 0 0.35rem 0;color:#8b90a7;">
                       <div style="height:1px;background:#e8e9f2;flex:1;"></div>
-                      <div style="font-size:0.9rem;">ou</div>
+                      <div style="font-size:0.9rem;">auth gérée</div>
                       <div style="height:1px;background:#e8e9f2;flex:1;"></div>
                     </div>
                     """,
                     unsafe_allow_html=True,
                 )
-                login_tab, signup_tab = st.tabs(["Connexion mail", "Créer un compte"])
-
-                with login_tab:
-                    with st.form("email_login_form", clear_on_submit=False):
-                        login_email = st.text_input("Email", key="login_email")
-                        login_password = st.text_input("Mot de passe", type="password", key="login_password")
-                        submit_login = st.form_submit_button("Se connecter", use_container_width=True)
-                        if submit_login:
-                            if authenticate_with_password("/auth/login", login_email, login_password):
-                                st.rerun()
-
-                with signup_tab:
-                    with st.form("email_signup_form", clear_on_submit=False):
-                        signup_name = st.text_input("Nom affiché", key="signup_name")
-                        signup_email = st.text_input("Email", key="signup_email")
-                        signup_password = st.text_input("Mot de passe", type="password", key="signup_password")
-                        submit_signup = st.form_submit_button("Créer mon compte", use_container_width=True)
-                        if submit_signup:
-                            if authenticate_with_password(
-                                "/auth/register",
-                                signup_email,
-                                signup_password,
-                                display_name=signup_name,
-                            ):
-                                st.rerun()
+                st.caption("Email, mot de passe, Google et sessions sont désormais gérés par Clerk.")
                 return
 
             st.markdown(

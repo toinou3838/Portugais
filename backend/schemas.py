@@ -31,6 +31,10 @@ class AuthResponse(BaseModel):
     user: UserResponse
 
 
+class ClerkExchangeRequest(BaseModel):
+    clerk_token: str
+
+
 class ProgressIn(BaseModel):
     answered_questions: int
     correct_answers: int = 0

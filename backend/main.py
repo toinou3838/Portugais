@@ -5,6 +5,9 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 from authlib.integrations.starlette_client import OAuth
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
+import jwt
+from jwt import PyJWKClient
+import requests
 from sqlalchemy import inspect, select, text
 from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
@@ -12,7 +15,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from backend.config import settings
 from backend.database import Base, engine, get_db
 from backend.models import User
-from backend.schemas import AuthRequest, AuthResponse, DailyProgressResponse, ProgressIn, RegisterRequest, ReminderPreferenceIn, UserResponse
+from backend.schemas import AuthRequest, AuthResponse, ClerkExchangeRequest, DailyProgressResponse, ProgressIn, RegisterRequest, ReminderPreferenceIn, UserResponse
 from backend.security import create_access_token, decode_access_token, hash_password, verify_password
 from backend.services import build_user_response, compute_streak, send_due_reminders, update_daily_progress
 
@@ -45,6 +48,65 @@ def ensure_legacy_columns():
             connection.execute(text("ALTER TABLE users ADD COLUMN password_hash VARCHAR(512)"))
         if "auth_provider" not in columns:
             connection.execute(text("ALTER TABLE users ADD COLUMN auth_provider VARCHAR(32) DEFAULT 'google'"))
+        if "clerk_user_id" not in columns:
+            connection.execute(text("ALTER TABLE users ADD COLUMN clerk_user_id VARCHAR(255)"))
+
+
+def derive_clerk_frontend_api_url() -> str:
+    if settings.clerk_frontend_api_url:
+        return settings.clerk_frontend_api_url.rstrip("/")
+
+    key = settings.clerk_publishable_key
+    if not key or "_" not in key:
+        return ""
+
+    encoded_part = key.split("_", 2)[-1].split("$", 1)[0]
+    padding = "=" * (-len(encoded_part) % 4)
+    try:
+        import base64
+
+        decoded = base64.urlsafe_b64decode(f"{encoded_part}{padding}").decode("utf-8")
+    except Exception:
+        return ""
+
+    if decoded.startswith("http://") or decoded.startswith("https://"):
+        return decoded.rstrip("/")
+    return f"https://{decoded}".rstrip("/")
+
+
+def get_clerk_jwks_url() -> str:
+    if settings.clerk_jwks_url:
+        return settings.clerk_jwks_url
+
+    frontend_api_url = derive_clerk_frontend_api_url()
+    if not frontend_api_url:
+        raise HTTPException(status_code=500, detail="Clerk frontend API URL is not configured")
+    return f"{frontend_api_url}/.well-known/jwks.json"
+
+
+def verify_clerk_session_token(clerk_token: str) -> dict:
+    jwks_client = PyJWKClient(get_clerk_jwks_url())
+    signing_key = jwks_client.get_signing_key_from_jwt(clerk_token)
+    return jwt.decode(
+        clerk_token,
+        signing_key.key,
+        algorithms=["RS256"],
+        options={"verify_signature": True, "verify_exp": True, "verify_nbf": True, "verify_aud": False},
+    )
+
+
+def fetch_clerk_user(clerk_user_id: str) -> dict:
+    if not settings.clerk_secret_key:
+        raise HTTPException(status_code=500, detail="Clerk secret key is not configured")
+
+    response = requests.get(
+        f"https://api.clerk.com/v1/users/{clerk_user_id}",
+        headers={"Authorization": f"Bearer {settings.clerk_secret_key}"},
+        timeout=10,
+    )
+    if not response.ok:
+        raise HTTPException(status_code=401, detail="Unable to fetch Clerk user")
+    return response.json()
 
 
 def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
@@ -192,6 +254,63 @@ def login_with_password(payload: AuthRequest, db: Session = Depends(get_db)):
     user = db.scalar(select(User).where(User.email == email))
     if user is None or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Email ou mot de passe invalide")
+
+    access_token = create_access_token(user.id)
+    return AuthResponse(access_token=access_token, user=build_user_response(db, user))
+
+
+@app.post("/auth/clerk/exchange", response_model=AuthResponse)
+def exchange_clerk_token(payload: ClerkExchangeRequest, db: Session = Depends(get_db)):
+    claims = verify_clerk_session_token(payload.clerk_token)
+    clerk_user_id = claims.get("sub")
+    if not clerk_user_id:
+        raise HTTPException(status_code=401, detail="Invalid Clerk token")
+
+    clerk_user = fetch_clerk_user(clerk_user_id)
+    email_addresses = clerk_user.get("email_addresses", [])
+    primary_email_id = clerk_user.get("primary_email_address_id")
+    primary_email = next(
+        (
+            item.get("email_address")
+            for item in email_addresses
+            if item.get("id") == primary_email_id
+        ),
+        None,
+    ) or next((item.get("email_address") for item in email_addresses if item.get("email_address")), None)
+
+    if not primary_email:
+        raise HTTPException(status_code=400, detail="Clerk user has no email address")
+
+    first_name = (clerk_user.get("first_name") or "").strip()
+    last_name = (clerk_user.get("last_name") or "").strip()
+    full_name = " ".join(part for part in [first_name, last_name] if part).strip()
+    display_name = full_name or primary_email.split("@", 1)[0]
+    avatar_url = clerk_user.get("image_url")
+
+    user = db.scalar(select(User).where(User.clerk_user_id == clerk_user_id))
+    if user is None:
+        user = db.scalar(select(User).where(User.email == primary_email.lower()))
+
+    if user is None:
+        user = User(
+            google_sub=f"clerk:{clerk_user_id}",
+            clerk_user_id=clerk_user_id,
+            email=primary_email.lower(),
+            display_name=display_name,
+            avatar_url=avatar_url,
+            auth_provider="clerk",
+        )
+        db.add(user)
+    else:
+        user.clerk_user_id = clerk_user_id
+        user.google_sub = f"clerk:{clerk_user_id}"
+        user.email = primary_email.lower()
+        user.display_name = display_name
+        user.avatar_url = avatar_url
+        user.auth_provider = "clerk"
+
+    db.commit()
+    db.refresh(user)
 
     access_token = create_access_token(user.id)
     return AuthResponse(access_token=access_token, user=build_user_response(db, user))
